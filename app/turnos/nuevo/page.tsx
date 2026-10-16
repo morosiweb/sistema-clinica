@@ -1,5 +1,6 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { authVigente as auth } from "@/lib/sesion";
 import { prisma } from "@/lib/prisma";
 import { parsePermisos, puedeVer } from "@/lib/pantallas";
 import { TurnoForm } from "@/components/turno-form";
@@ -18,7 +19,10 @@ export default async function NuevoTurnoPage({
     where: { id: session.user.id },
     select: { rol: true, permisos: true },
   });
-  if (!usuario || !puedeVer(parsePermisos(usuario.permisos), usuario.rol, ["turnos"])) {
+  if (
+    !usuario ||
+    !puedeVer(parsePermisos(usuario.permisos), usuario.rol, ["turnos"])
+  ) {
     redirect("/panel");
   }
 
@@ -34,9 +38,9 @@ export default async function NuevoTurnoPage({
         <h1 className="mb-4 text-xl font-semibold">Nuevo turno</h1>
         <p className="text-sm text-neutral-500">
           Primero tenés que cargar al menos un médico activo en{" "}
-          <a href="/medicos" className="underline">
+          <Link href="/medicos" className="underline">
             Médicos
-          </a>
+          </Link>
           .
         </p>
       </div>

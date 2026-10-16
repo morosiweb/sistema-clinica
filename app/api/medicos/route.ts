@@ -1,10 +1,15 @@
+import { conErrores } from "@/lib/errores";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/api-auth";
 import { medicoSchema } from "@/lib/validations/medico";
 
-export async function GET() {
-  const { session, response } = await requireSession(["medicos", "turnos", "agenda"]);
+async function GETHandler() {
+  const { session, response } = await requireSession([
+    "medicos",
+    "turnos",
+    "agenda",
+  ]);
   if (!session) return response;
 
   const medicos = await prisma.medico.findMany({
@@ -14,14 +19,17 @@ export async function GET() {
   return NextResponse.json(medicos);
 }
 
-export async function POST(request: NextRequest) {
+async function POSTHandler(request: NextRequest) {
   const { session, response } = await requireSession(["medicos"]);
   if (!session) return response;
 
   const body = await request.json();
   const parsed = medicoSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message || "Datos inválidos" },
+      { status: 400 },
+    );
   }
   const data = parsed.data;
 
@@ -39,3 +47,6 @@ export async function POST(request: NextRequest) {
   });
   return NextResponse.json(medico, { status: 201 });
 }
+
+export const GET = conErrores(GETHandler);
+export const POST = conErrores(POSTHandler);

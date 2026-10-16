@@ -13,9 +13,11 @@ export function hashToken(token: string): string {
 
 function claveCifrado(): Buffer {
   const raw = process.env.TOKEN_ENCRYPTION_KEY;
-  if (!raw) throw new Error("Falta TOKEN_ENCRYPTION_KEY en las variables de entorno");
+  if (!raw)
+    throw new Error("Falta TOKEN_ENCRYPTION_KEY en las variables de entorno");
   const key = Buffer.from(raw, "base64");
-  if (key.length !== 32) throw new Error("TOKEN_ENCRYPTION_KEY debe ser 32 bytes en base64");
+  if (key.length !== 32)
+    throw new Error("TOKEN_ENCRYPTION_KEY debe ser 32 bytes en base64");
   return key;
 }
 
@@ -36,5 +38,7 @@ export function desencriptarToken(enc: string): string {
   const cifrado = datos.subarray(28);
   const decipher = crypto.createDecipheriv("aes-256-gcm", claveCifrado(), iv);
   decipher.setAuthTag(tag);
-  return Buffer.concat([decipher.update(cifrado), decipher.final()]).toString("utf8");
+  return Buffer.concat([decipher.update(cifrado), decipher.final()]).toString(
+    "utf8",
+  );
 }

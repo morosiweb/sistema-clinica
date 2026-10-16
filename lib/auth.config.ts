@@ -11,7 +11,8 @@ export const authConfig = {
       const isOnLogin = pathname.startsWith("/login");
 
       if (isOnLogin) {
-        if (isLoggedIn) return Response.redirect(new URL("/panel", request.nextUrl));
+        if (isLoggedIn)
+          return Response.redirect(new URL("/panel", request.nextUrl));
         return true;
       }
       // Las rutas /api se dejan pasar: se protegen solas con
@@ -21,15 +22,16 @@ export const authConfig = {
       // Landing pública, reserva de turno online y gestión del paciente vía
       // su link personal: son públicas por diseño, el paciente nunca inicia
       // sesión. El panel interno vive aparte, en /panel.
-      if (pathname === "/" || pathname.startsWith("/reservar") || pathname.startsWith("/mi-turno")) {
+      if (
+        pathname === "/" ||
+        pathname.startsWith("/reservar") ||
+        pathname.startsWith("/mi-turno")
+      ) {
         return true;
       }
 
       if (!isLoggedIn) return false;
 
-      if (pathname.startsWith("/admin") && auth?.user?.rol !== "ADMIN") {
-        return Response.redirect(new URL("/panel", request.nextUrl));
-      }
       return true;
     },
     jwt({ token, user }) {

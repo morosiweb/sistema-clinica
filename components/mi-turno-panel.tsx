@@ -1,207 +1,237 @@
 "use client";
-
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
+import Link from "next/link";
 import { EstadoBadge } from "@/components/estado-badge";
 import { ReprogramarForm } from "@/components/reprogramar-form";
-
+import { fetchJSON, mensajeError, useAhora, useRecurso } from "@/lib/cliente";
+import { instanteClinica } from "@/lib/fecha";
 type Turno = {
   id: string;
+  version: number;
   medicoId: string;
   fecha: string;
   horaInicio: string;
   horaFin: string;
   estado: string;
-  motivoConsulta: string | null;
-  medico: { nombre: string; apellido: string; especialidad: { nombre: string } };
+  medico: {
+    nombre: string;
+    apellido: string;
+    especialidad: { nombre: string };
+  };
 };
-
+type Panel = {
+  paciente: { nombre: string; apellido: string; dni: string };
+  turnos: Turno[];
+  hayMas: boolean;
+};
 export function MiTurnoPanel({ token }: { token: string }) {
-  const [paciente, setPaciente] = useState<{ nombre: string; apellido: string; dni: string } | null>(null);
-  const [turnos, setTurnos] = useState<Turno[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [cargando, setCargando] = useState(true);
-  const [linkNuevo, setLinkNuevo] = useState<string | null>(null);
-  const [reprogramando, setReprogramando] = useState<string | null>(null);
-
-  const cargar = useCallback(async () => {
-    setCargando(true);
-    const res = await fetch(`/api/publico/mi-turno/${token}`);
-    const data = await res.json().catch(() => null);
-    setCargando(false);
-    if (!res.ok) {
-      setError(data?.error ?? "No se pudo cargar.");
-      return;
-    }
-    setPaciente(data.paciente);
-    setTurnos(data.turnos);
-  }, [token]);
-
-  useEffect(() => {
-    cargar();
-  }, [cargar]);
-
-  async function cancelar(turnoId: string) {
+  const ahora = useAhora();
+  const [pagina, setPagina] = useState(1);
+  const recurso = useRecurso<Panel>(
+    `/api/publico/mi-turno/${token}?pagina=${pagina}`,
+  );
+  const [error, setError] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+  const [reprogramando, setReprogramando] = useState("");
+  const [nuevo, setNuevo] = useState("");
+  async function cancelar(t: Turno) {
     if (!confirm("¿Cancelar este turno?")) return;
-    const res = await fetch(`/api/publico/mi-turno/${token}/cancelar`, {
+    setOcupado(true);
+    setError("");
+    try {
+      await fetchJSON(`/api/publico/mi-turno/${token}/cancelar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ turnoId: t.id, version: t.version }),
+      });
+      recurso.refrescar();
+    } catch (e) {
+      setError(mensajeError(e));
+      recurso.refrescar();
+    } finally {
+      setOcupado(false);
+    }
+  }
+  async function reprogramar(
+    t: Turno,
+    medicoId: string,
+    fecha: string,
+    horaInicio: string,
+  ) {
+    await fetchJSON(`/api/publico/mi-turno/${token}/reprogramar`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ turnoId }),
+      body: JSON.stringify({
+        turnoId: t.id,
+        version: t.version,
+        medicoId,
+        fecha,
+        horaInicio,
+      }),
     });
-    const data = await res.json().catch(() => null);
-    if (!res.ok) {
-      alert(data?.error ?? "No se pudo cancelar.");
-      return;
-    }
-    cargar();
+    setReprogramando("");
+    recurso.refrescar();
   }
-
-  async function reprogramar(turnoId: string, medicoId: string, fecha: string, horaInicio: string) {
-    const res = await fetch(`/api/publico/mi-turno/${token}/reprogramar`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ turnoId, medicoId, fecha, horaInicio }),
-    });
-    const data = await res.json().catch(() => null);
-    if (!res.ok) {
-      alert(data?.error ?? "No se pudo reprogramar.");
-      return;
-    }
-    setReprogramando(null);
-    cargar();
-  }
-
   async function regenerar() {
-    if (!confirm("Esto invalida tu link actual y te da uno nuevo. ¿Continuar?")) return;
-    const res = await fetch(`/api/publico/mi-turno/${token}/regenerar`, { method: "POST" });
-    const data = await res.json().catch(() => null);
-    if (!res.ok) {
-      alert(data?.error ?? "No se pudo regenerar.");
+    if (!confirm("El enlace actual dejará de funcionar. ¿Generar otro?"))
       return;
+    setOcupado(true);
+    setError("");
+    try {
+      const data = await fetchJSON<{ linkAcceso: string }>(
+        `/api/publico/mi-turno/${token}/regenerar`,
+        { method: "POST" },
+      );
+      setNuevo(data.linkAcceso);
+    } catch (e) {
+      setError(mensajeError(e));
+    } finally {
+      setOcupado(false);
     }
-    setLinkNuevo(data.linkAcceso);
   }
-
-  if (cargando) return <p className="px-6 py-10 text-sm text-neutral-500">Cargando...</p>;
-
-  if (linkNuevo) {
+  if (nuevo)
     return (
-      <div className="mx-auto max-w-md px-6 py-16 text-center">
-        <h1 className="mb-4 text-xl font-semibold">Nuevo link generado</h1>
-        <p className="mb-4 text-sm text-neutral-500">
-          El link anterior ya no funciona. Guardá este, es el único válido de ahora en más.
-        </p>
-        <a href={linkNuevo} className="block break-all rounded-md border border-neutral-200 p-4 text-sm underline dark:border-neutral-800">
-          {typeof window !== "undefined" ? window.location.origin : ""}
-          {linkNuevo}
-        </a>
-      </div>
+      <main className="mx-auto max-w-md space-y-4 px-6 py-16">
+        <h1 className="text-xl font-semibold">Nuevo enlace generado</h1>
+        <p>Guardá este enlace. El anterior ya no funciona.</p>
+        <Link className="break-all underline" href={nuevo}>
+          {nuevo}
+        </Link>
+      </main>
     );
-  }
-
-  if (error || !paciente) {
+  if (recurso.cargando)
+    return <p className="px-6 py-10">Cargando tus turnos…</p>;
+  if (!recurso.data)
     return (
-      <div className="mx-auto max-w-md px-6 py-16 text-center">
-        <p className="text-sm text-neutral-500">{error ?? "Link inválido."}</p>
-        <a href="/mi-turno/recuperar" className="mt-4 inline-block text-sm underline">
+      <main className="px-6 py-10">
+        <p role="alert">{recurso.error || "No se pudo cargar el enlace"}</p>
+        <Link href="/mi-turno/recuperar" className="underline">
           Recuperar mi acceso
-        </a>
-      </div>
+        </Link>
+      </main>
     );
-  }
-
-  const ahora = Date.now();
-  const futuros = turnos.filter((t) => new Date(`${t.fecha.slice(0, 10)}T${t.horaInicio}:00Z`).getTime() >= ahora);
-  const pasados = turnos.filter((t) => new Date(`${t.fecha.slice(0, 10)}T${t.horaInicio}:00Z`).getTime() < ahora);
-
+  const { paciente, turnos } = recurso.data;
+  const futuros = turnos
+    .filter(
+      (t) =>
+        instanteClinica(t.fecha.slice(0, 10), t.horaInicio).getTime() >= ahora,
+    )
+    .sort(
+      (a, b) =>
+        a.fecha.localeCompare(b.fecha) ||
+        a.horaInicio.localeCompare(b.horaInicio),
+    );
+  const pasados = turnos.filter(
+    (t) =>
+      instanteClinica(t.fecha.slice(0, 10), t.horaInicio).getTime() < ahora,
+  );
   return (
-    <div className="mx-auto max-w-2xl px-6 py-10">
-      <div className="mb-6 flex items-center justify-between">
+    <main className="mx-auto max-w-2xl space-y-5 px-6 py-10">
+      <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold">
             {paciente.apellido}, {paciente.nombre}
           </h1>
-          <p className="text-sm text-neutral-500">DNI {paciente.dni}</p>
+          <p className="text-sm">DNI {paciente.dni}</p>
         </div>
-        <a
-          href="/reservar"
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
-        >
-          + Nuevo turno
-        </a>
-      </div>
-
-      <h2 className="mb-2 text-sm font-semibold">Próximos turnos</h2>
-      <div className="mb-6 divide-y divide-neutral-200 rounded-md border border-neutral-200 dark:divide-neutral-800 dark:border-neutral-800">
-        {futuros.map((t) => (
-          <div key={t.id} className="px-4 py-3 text-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p>
-                  {new Date(t.fecha).toLocaleDateString("es-AR", { timeZone: "UTC" })} · {t.horaInicio}
-                </p>
-                <p className="text-neutral-500">
-                  {t.medico.apellido}, {t.medico.nombre} · {t.medico.especialidad.nombre}
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <EstadoBadge estado={t.estado} />
-                {t.estado !== "CANCELADO" && (
-                  <>
-                    <button
-                      onClick={() => setReprogramando(reprogramando === t.id ? null : t.id)}
-                      className="underline"
-                    >
-                      Reprogramar
-                    </button>
-                    <button onClick={() => cancelar(t.id)} className="text-red-600 underline">
-                      Cancelar
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-            {reprogramando === t.id && (
-              <div className="mt-3">
-                <ReprogramarForm
-                  medicoActualId={t.medicoId}
-                  onCancelar={() => setReprogramando(null)}
-                  onConfirmar={(medicoId, fecha, horaInicio) =>
-                    reprogramar(t.id, medicoId, fecha, horaInicio)
+        <Link href="/reservar" className="text-sm underline">
+          Reservar otro turno
+        </Link>
+      </header>
+      {error && (
+        <p role="alert" className="text-sm text-red-600">
+          {error}
+        </p>
+      )}
+      <h2 className="font-semibold">Próximos turnos</h2>
+      {futuros.length === 0 && (
+        <p className="text-sm">No hay turnos próximos en esta página.</p>
+      )}
+      {futuros.map((t) => {
+        const editable =
+          ["PENDIENTE", "CONFIRMADO"].includes(t.estado) &&
+          instanteClinica(t.fecha.slice(0, 10), t.horaInicio).getTime() -
+            ahora >=
+            4 * 3600000;
+        return (
+          <article key={t.id} className="space-y-2 rounded border p-4 text-sm">
+            <p>
+              {t.fecha.slice(0, 10)} · {t.horaInicio}–{t.horaFin}
+            </p>
+            <p>
+              {t.medico.apellido}, {t.medico.nombre} ·{" "}
+              {t.medico.especialidad.nombre}
+            </p>
+            <EstadoBadge estado={t.estado} />
+            {editable && (
+              <div className="flex gap-4">
+                <button
+                  disabled={ocupado}
+                  className="underline"
+                  onClick={() =>
+                    setReprogramando(reprogramando === t.id ? "" : t.id)
                   }
-                />
+                >
+                  Reprogramar
+                </button>
+                <button
+                  disabled={ocupado}
+                  className="text-red-600 underline"
+                  onClick={() => cancelar(t)}
+                >
+                  Cancelar
+                </button>
               </div>
             )}
-          </div>
-        ))}
-        {futuros.length === 0 && (
-          <p className="px-4 py-6 text-center text-sm text-neutral-500">No tenés turnos próximos.</p>
-        )}
-      </div>
-
+            {!editable && ["PENDIENTE", "CONFIRMADO"].includes(t.estado) && (
+              <p>Para modificar este turno, comunicate con la clínica.</p>
+            )}
+            {reprogramando === t.id && (
+              <ReprogramarForm
+                key={t.id + ":" + t.version}
+                medicoActualId={t.medicoId}
+                onCancelar={() => setReprogramando("")}
+                onConfirmar={(m, f, h) => reprogramar(t, m, f, h)}
+              />
+            )}
+          </article>
+        );
+      })}
       {pasados.length > 0 && (
         <>
-          <h2 className="mb-2 text-sm font-semibold">Historial</h2>
-          <div className="mb-6 divide-y divide-neutral-200 rounded-md border border-neutral-200 dark:divide-neutral-800 dark:border-neutral-800">
-            {pasados.map((t) => (
-              <div key={t.id} className="flex items-center justify-between px-4 py-3 text-sm">
-                <div>
-                  <p>
-                    {new Date(t.fecha).toLocaleDateString("es-AR", { timeZone: "UTC" })} · {t.horaInicio}
-                  </p>
-                  <p className="text-neutral-500">
-                    {t.medico.apellido}, {t.medico.nombre}
-                  </p>
-                </div>
-                <EstadoBadge estado={t.estado} />
-              </div>
-            ))}
-          </div>
+          <h2 className="font-semibold">Historial</h2>
+          {pasados.map((t) => (
+            <article key={t.id} className="rounded border p-3 text-sm">
+              {t.fecha.slice(0, 10)} · {t.horaInicio} · {t.medico.apellido}{" "}
+              <EstadoBadge estado={t.estado} />
+            </article>
+          ))}
         </>
       )}
-
-      <button onClick={regenerar} className="text-xs text-neutral-500 underline">
-        ¿Creés que alguien más tiene este link? Regenerarlo
+      <nav aria-label="Páginas de turnos" className="flex gap-4 text-sm">
+        <button
+          disabled={pagina === 1}
+          onClick={() => setPagina((p) => p - 1)}
+          className="underline disabled:opacity-40"
+        >
+          Anterior
+        </button>
+        <span>Página {pagina}</span>
+        <button
+          disabled={!recurso.data.hayMas}
+          onClick={() => setPagina((p) => p + 1)}
+          className="underline disabled:opacity-40"
+        >
+          Siguiente
+        </button>
+      </nav>
+      <button
+        disabled={ocupado}
+        onClick={regenerar}
+        className="text-xs underline"
+      >
+        Regenerar mi enlace de acceso
       </button>
-    </div>
+    </main>
   );
 }

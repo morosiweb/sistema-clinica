@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { authVigente as auth } from "@/lib/sesion";
 import { prisma } from "@/lib/prisma";
 import { UsuarioForm } from "@/components/usuario-form";
 

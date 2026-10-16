@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { authVigente as auth } from "@/lib/sesion";
 import { prisma } from "@/lib/prisma";
 
 export const instant = false;

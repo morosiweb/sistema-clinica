@@ -31,7 +31,9 @@ export function PacienteForm({
   pacienteId?: string;
 }) {
   const router = useRouter();
-  const [valores, setValores] = useState<PacienteFormValues>(valoresIniciales ?? vacio);
+  const [valores, setValores] = useState<PacienteFormValues>(
+    valoresIniciales ?? vacio,
+  );
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
 
@@ -44,26 +46,41 @@ export function PacienteForm({
   }
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setGuardando(true);
+    try {
+      e.preventDefault();
+      setError(null);
+      setGuardando(true);
 
-    const url = pacienteId ? `/api/pacientes/${pacienteId}` : "/api/pacientes";
-    const method = pacienteId ? "PATCH" : "POST";
-    const res = await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(valores),
-    });
+      const url = pacienteId
+        ? `/api/pacientes/${pacienteId}`
+        : "/api/pacientes";
+      const method = pacienteId ? "PATCH" : "POST";
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(valores),
+      });
 
-    setGuardando(false);
-    if (!res.ok) {
-      const data = await res.json().catch(() => null);
-      setError(data?.error && typeof data.error === "string" ? data.error : "No se pudo guardar.");
-      return;
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setError(
+          data?.error && typeof data.error === "string"
+            ? data.error
+            : "No se pudo guardar.",
+        );
+        return;
+      }
+      router.push("/pacientes");
+      router.refresh();
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo conectar. Intentá nuevamente.",
+      );
+    } finally {
+      setGuardando(false);
     }
-    router.push("/pacientes");
-    router.refresh();
   }
 
   const inputClass =
@@ -73,40 +90,105 @@ export function PacienteForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1">
-          <label className="text-sm font-medium">DNI *</label>
-          <input required className={inputClass} {...campo("dni")} />
+          <label
+            htmlFor="paciente-form-campo-1"
+            className="text-sm font-medium"
+          >
+            DNI *
+          </label>
+          <input
+            id="paciente-form-campo-1"
+            required
+            className={inputClass}
+            {...campo("dni")}
+          />
         </div>
         <div className="space-y-1">
-          <label className="text-sm font-medium">Obra social</label>
-          <input className={inputClass} {...campo("obraSocial")} />
+          <label
+            htmlFor="paciente-form-campo-2"
+            className="text-sm font-medium"
+          >
+            Obra social
+          </label>
+          <input
+            id="paciente-form-campo-2"
+            className={inputClass}
+            {...campo("obraSocial")}
+          />
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1">
-          <label className="text-sm font-medium">Nombre *</label>
-          <input required className={inputClass} {...campo("nombre")} />
+          <label
+            htmlFor="paciente-form-campo-3"
+            className="text-sm font-medium"
+          >
+            Nombre *
+          </label>
+          <input
+            id="paciente-form-campo-3"
+            required
+            className={inputClass}
+            {...campo("nombre")}
+          />
         </div>
         <div className="space-y-1">
-          <label className="text-sm font-medium">Apellido *</label>
-          <input required className={inputClass} {...campo("apellido")} />
+          <label
+            htmlFor="paciente-form-campo-4"
+            className="text-sm font-medium"
+          >
+            Apellido *
+          </label>
+          <input
+            id="paciente-form-campo-4"
+            required
+            className={inputClass}
+            {...campo("apellido")}
+          />
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1">
-          <label className="text-sm font-medium">Teléfono</label>
-          <input className={inputClass} {...campo("telefono")} />
+          <label
+            htmlFor="paciente-form-campo-5"
+            className="text-sm font-medium"
+          >
+            Teléfono
+          </label>
+          <input
+            id="paciente-form-campo-5"
+            className={inputClass}
+            {...campo("telefono")}
+          />
         </div>
         <div className="space-y-1">
-          <label className="text-sm font-medium">Email</label>
-          <input type="email" className={inputClass} {...campo("email")} />
+          <label
+            htmlFor="paciente-form-campo-6"
+            className="text-sm font-medium"
+          >
+            Email
+          </label>
+          <input
+            id="paciente-form-campo-6"
+            type="email"
+            className={inputClass}
+            {...campo("email")}
+          />
         </div>
       </div>
 
       <div className="space-y-1">
-        <label className="text-sm font-medium">Fecha de nacimiento</label>
-        <input type="date" className={inputClass} {...campo("fechaNacimiento")} />
+        <label htmlFor="paciente-form-campo-7" className="text-sm font-medium">
+          Fecha de nacimiento
+        </label>
+        <input
+          id="paciente-form-campo-7"
+          type="date"
+          className={inputClass}
+          {...campo("fechaNacimiento")}
+        />
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}

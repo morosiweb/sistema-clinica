@@ -9,19 +9,25 @@ import type { EntradaHistoria } from "@/components/historia-clinica";
 export async function obtenerHistoriaPaciente(
   pacienteId: string,
   viewer: { rol: RolInterno; medicoId: string | null },
-  opciones?: { excluirTurnoId?: string }
+  opciones?: { excluirTurnoId?: string; pagina?: number },
 ): Promise<EntradaHistoria[]> {
   const turnos = await prisma.turno.findMany({
     where: {
       pacienteId,
-      ...(opciones?.excluirTurnoId ? { NOT: { id: opciones.excluirTurnoId } } : {}),
+      ...(opciones?.excluirTurnoId
+        ? { NOT: { id: opciones.excluirTurnoId } }
+        : {}),
     },
     include: { medico: { include: { especialidad: true } } },
     orderBy: [{ fecha: "desc" }, { horaInicio: "desc" }],
+    take: 50,
+    skip: ((opciones?.pagina || 1) - 1) * 50,
   });
 
   return turnos.map((t) => {
-    const puedeVerNotas = viewer.rol === "ADMIN" || (viewer.rol === "MEDICO" && t.medicoId === viewer.medicoId);
+    const puedeVerNotas =
+      viewer.rol === "ADMIN" ||
+      (viewer.rol === "MEDICO" && t.medicoId === viewer.medicoId);
     return {
       id: t.id,
       fecha: t.fecha.toISOString(),

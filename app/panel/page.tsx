@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { auth, signOut } from "@/lib/auth";
+import { signOut } from "@/lib/auth";
+import { authVigente as auth } from "@/lib/sesion";
 import { prisma } from "@/lib/prisma";
 import { parsePermisos, pantallasPermitidas } from "@/lib/pantallas";
 
@@ -8,7 +10,7 @@ export const instant = false;
 
 export default async function Home() {
   const session = await auth();
-  if (!session?.user) redirect("/login");
+  if (!session?.user) redirect("/api/auth/sesion-invalida");
 
   const usuario = await prisma.usuarioInterno.findUnique({
     where: { id: session.user.id },
@@ -19,7 +21,10 @@ export default async function Home() {
   // redirigir, o /login rebota de nuevo para acá (loop infinito).
   if (!usuario || !usuario.activo) redirect("/api/auth/sesion-invalida");
 
-  const pantallas = pantallasPermitidas(parsePermisos(usuario.permisos), usuario.rol);
+  const pantallas = pantallasPermitidas(
+    parsePermisos(usuario.permisos),
+    usuario.rol,
+  );
 
   return (
     <div className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 px-6 py-12">
@@ -44,16 +49,18 @@ export default async function Home() {
 
       <nav className="grid gap-2">
         {pantallas.map((p) => (
-          <a
+          <Link
             key={p.key}
             href={p.href}
             className="rounded-md border border-neutral-200 px-4 py-3 text-sm hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-900"
           >
             {p.label}
-          </a>
+          </Link>
         ))}
         {pantallas.length === 0 && (
-          <p className="text-sm text-neutral-500">No tenés pantallas habilitadas todavía.</p>
+          <p className="text-sm text-neutral-500">
+            No tenés pantallas habilitadas todavía.
+          </p>
         )}
       </nav>
     </div>

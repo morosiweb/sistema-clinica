@@ -1,12 +1,20 @@
+import { conErrores } from "@/lib/errores";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export async function GET(request: NextRequest) {
+async function GETHandler(request: NextRequest) {
   const especialidadId = request.nextUrl.searchParams.get("especialidadId");
   const medicos = await prisma.medico.findMany({
     where: { activo: true, ...(especialidadId ? { especialidadId } : {}) },
-    include: { especialidad: true },
+    select: {
+      id: true,
+      nombre: true,
+      apellido: true,
+      especialidad: { select: { id: true, nombre: true } },
+    },
     orderBy: { apellido: "asc" },
   });
   return NextResponse.json(medicos);
 }
+
+export const GET = conErrores(GETHandler);

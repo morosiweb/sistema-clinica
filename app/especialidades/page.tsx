@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { authVigente as auth } from "@/lib/sesion";
 import { prisma } from "@/lib/prisma";
 import { parsePermisos, puedeVer } from "@/lib/pantallas";
 import { EspecialidadManager } from "@/components/especialidad-manager";
@@ -14,11 +14,16 @@ export default async function EspecialidadesPage() {
     where: { id: session.user.id },
     select: { rol: true, permisos: true },
   });
-  if (!usuario || !puedeVer(parsePermisos(usuario.permisos), usuario.rol, ["especialidades"])) {
+  if (
+    !usuario ||
+    !puedeVer(parsePermisos(usuario.permisos), usuario.rol, ["especialidades"])
+  ) {
     redirect("/panel");
   }
 
-  const especialidades = await prisma.especialidad.findMany({ orderBy: { nombre: "asc" } });
+  const especialidades = await prisma.especialidad.findMany({
+    orderBy: { nombre: "asc" },
+  });
 
   return (
     <div className="mx-auto max-w-2xl px-6 py-10">

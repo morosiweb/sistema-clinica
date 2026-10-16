@@ -2,11 +2,21 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { HistoriaClinica, type EntradaHistoria } from "@/components/historia-clinica";
+import {
+  HistoriaClinica,
+  type EntradaHistoria,
+} from "@/components/historia-clinica";
 import { PagosTurno, type Pago } from "@/components/pagos-turno";
+import { RevisionesClinicas } from "@/components/revisiones-clinicas";
 import { FichaMedica } from "@/components/ficha-medica";
 
-type Historial = { id: string; accion: string; realizadoPor: string; detalle: string | null; fecha: string };
+type Historial = {
+  id: string;
+  accion: string;
+  realizadoPor: string;
+  detalle: string | null;
+  fecha: string;
+};
 
 export type TurnoDetalleData = {
   id: string;
@@ -24,17 +34,28 @@ export type TurnoDetalleData = {
     apellido: string;
     dni: string;
     telefono: string | null;
+    versionFicha: number;
     pesoKg: number | null;
     alturaCm: number | null;
     grupoSanguineo: string | null;
     alergias: string | null;
     antecedentes: string | null;
   };
-  medico: { nombre: string; apellido: string; especialidad: { nombre: string } };
+  medico: {
+    nombre: string;
+    apellido: string;
+    especialidad: { nombre: string };
+  };
   historial: Historial[];
 };
 
-const ESTADOS = ["PENDIENTE", "CONFIRMADO", "CANCELADO", "AUSENTE", "ATENDIDO"] as const;
+const ESTADOS = [
+  "PENDIENTE",
+  "CONFIRMADO",
+  "CANCELADO",
+  "AUSENTE",
+  "ATENDIDO",
+] as const;
 
 export function TurnoDetalle({
   turno,
@@ -54,7 +75,9 @@ export function TurnoDetalle({
 }) {
   const router = useRouter();
   const [estado, setEstado] = useState(turno.estado);
-  const [notasSecretaria, setNotasSecretaria] = useState(turno.notasSecretaria ?? "");
+  const [notasSecretaria, setNotasSecretaria] = useState(
+    turno.notasSecretaria ?? "",
+  );
   const [notasMedico, setNotasMedico] = useState(turno.notasMedico ?? "");
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
@@ -63,42 +86,76 @@ export function TurnoDetalle({
     "w-full rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-800";
 
   async function guardar() {
-    setError(null);
-    setGuardando(true);
-    const res = await fetch(`/api/turnos/${turno.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ estado, notasSecretaria, notasMedico, version: turno.version }),
-    });
-    setGuardando(false);
-    if (!res.ok) {
-      const body = await res.json().catch(() => null);
-      setError(body?.error && typeof body.error === "string" ? body.error : "No se pudo guardar.");
-      return;
+    try {
+      setError(null);
+      setGuardando(true);
+      const res = await fetch(`/api/turnos/${turno.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          estado,
+          notasSecretaria,
+          notasMedico,
+          version: turno.version,
+        }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        setError(
+          body?.error && typeof body.error === "string"
+            ? body.error
+            : "No se pudo guardar.",
+        );
+        return;
+      }
+      router.refresh();
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo conectar. Intentá nuevamente.",
+      );
+    } finally {
+      setGuardando(false);
     }
-    router.refresh();
   }
 
   return (
     <div className="space-y-6">
       <div className="rounded-md border border-neutral-200 p-4 text-sm dark:border-neutral-800">
         <p className="font-medium">
-          {turno.paciente.apellido}, {turno.paciente.nombre} · DNI {turno.paciente.dni}
+          {turno.paciente.apellido}, {turno.paciente.nombre} · DNI{" "}
+          {turno.paciente.dni}
         </p>
-        {turno.paciente.telefono && <p className="text-neutral-500">{turno.paciente.telefono}</p>}
+        {turno.paciente.telefono && (
+          <p className="text-neutral-500">{turno.paciente.telefono}</p>
+        )}
         <p className="mt-2 text-neutral-500">
-          {turno.medico.apellido}, {turno.medico.nombre} · {turno.medico.especialidad.nombre}
+          {turno.medico.apellido}, {turno.medico.nombre} ·{" "}
+          {turno.medico.especialidad.nombre}
         </p>
         <p className="text-neutral-500">
-          {new Date(turno.fecha).toLocaleDateString("es-AR", { timeZone: "UTC" })} · {turno.horaInicio}–
-          {turno.horaFin}
+          {new Date(turno.fecha).toLocaleDateString("es-AR", {
+            timeZone: "UTC",
+          })}{" "}
+          · {turno.horaInicio}–{turno.horaFin}
         </p>
-        {turno.motivoConsulta && <p className="mt-2">Motivo: {turno.motivoConsulta}</p>}
+        {turno.motivoConsulta && (
+          <p className="mt-2">Motivo: {turno.motivoConsulta}</p>
+        )}
       </div>
 
       <div className="space-y-1">
-        <label className="text-sm font-medium">Estado</label>
-        <select className={inputClass} value={estado} onChange={(e) => setEstado(e.target.value)}>
+        <label htmlFor="turno-detalle-campo-1" className="text-sm font-medium">
+          Estado
+        </label>
+        <select
+          id="turno-detalle-campo-1"
+          className={inputClass}
+          value={estado}
+          onChange={(e) => setEstado(e.target.value)}
+        >
           {ESTADOS.map((e) => (
             <option key={e} value={e}>
               {e}
@@ -109,8 +166,14 @@ export function TurnoDetalle({
 
       {!esMedico && (
         <div className="space-y-1">
-          <label className="text-sm font-medium">Notas de secretaría</label>
+          <label
+            htmlFor="turno-detalle-campo-2"
+            className="text-sm font-medium"
+          >
+            Notas de secretaría
+          </label>
           <textarea
+            id="turno-detalle-campo-2"
             className={inputClass}
             rows={3}
             value={notasSecretaria}
@@ -121,8 +184,14 @@ export function TurnoDetalle({
 
       {esMedico && (
         <div className="space-y-1">
-          <label className="text-sm font-medium">Notas clínicas (médico)</label>
+          <label
+            htmlFor="turno-detalle-campo-3"
+            className="text-sm font-medium"
+          >
+            Notas clínicas (médico)
+          </label>
           <textarea
+            id="turno-detalle-campo-3"
             className={inputClass}
             rows={3}
             value={notasMedico}
@@ -151,12 +220,20 @@ export function TurnoDetalle({
         {guardando ? "Guardando..." : "Guardar cambios"}
       </button>
 
+      {puedeVerNotasMedico && (
+        <RevisionesClinicas
+          tipo="notas"
+          id={turno.id}
+          version={turno.version}
+        />
+      )}
       <div>
         <h2 className="mb-2 text-sm font-semibold">Historial</h2>
         <div className="space-y-1 text-xs text-neutral-500">
           {turno.historial.map((h) => (
             <p key={h.id}>
-              {new Date(h.fecha).toLocaleString("es-AR")} · {h.accion} · {h.realizadoPor}
+              {new Date(h.fecha).toLocaleString("es-AR")} · {h.accion} ·{" "}
+              {h.realizadoPor}
               {h.detalle ? ` · ${h.detalle}` : ""}
             </p>
           ))}
@@ -166,16 +243,26 @@ export function TurnoDetalle({
       {historiaPaciente.length > 0 && (
         <div>
           <h2 className="mb-2 text-sm font-semibold">
-            {esMedico ? "Otras consultas con este paciente" : "Historia clínica del paciente"}
+            {esMedico
+              ? "Otras consultas con este paciente"
+              : "Historia clínica del paciente"}
           </h2>
-          <HistoriaClinica entradas={historiaPaciente} />
+          <HistoriaClinica
+            key={`${turno.id}:${turno.version}`}
+            entradas={historiaPaciente}
+            pacienteId={turno.paciente.id}
+            excluirTurnoId={turno.id}
+          />
         </div>
       )}
 
-      {esMedico && (
+      {puedeVerNotasMedico && (
         <FichaMedica
+          key={`${turno.paciente.id}:${turno.paciente.versionFicha}`}
+          puedeRegistrarVisita={esMedico}
           pacienteId={turno.paciente.id}
           inicial={{
+            versionFicha: turno.paciente.versionFicha,
             pesoKg: turno.paciente.pesoKg,
             alturaCm: turno.paciente.alturaCm,
             grupoSanguineo: turno.paciente.grupoSanguineo,

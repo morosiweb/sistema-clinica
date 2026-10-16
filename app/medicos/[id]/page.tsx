@@ -1,5 +1,5 @@
 import { redirect, notFound } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { authVigente as auth } from "@/lib/sesion";
 import { prisma } from "@/lib/prisma";
 import { parsePermisos, puedeVer } from "@/lib/pantallas";
 import { MedicoForm } from "@/components/medico-form";
@@ -19,14 +19,20 @@ export default async function EditarMedicoPage({
     where: { id: session.user.id },
     select: { rol: true, permisos: true },
   });
-  if (!usuario || !puedeVer(parsePermisos(usuario.permisos), usuario.rol, ["medicos"])) {
+  if (
+    !usuario ||
+    !puedeVer(parsePermisos(usuario.permisos), usuario.rol, ["medicos"])
+  ) {
     redirect("/panel");
   }
 
   const { id } = await params;
   const [medico, especialidades] = await Promise.all([
     prisma.medico.findUnique({ where: { id }, include: { horarios: true } }),
-    prisma.especialidad.findMany({ select: { id: true, nombre: true }, orderBy: { nombre: "asc" } }),
+    prisma.especialidad.findMany({
+      select: { id: true, nombre: true },
+      orderBy: { nombre: "asc" },
+    }),
   ]);
   if (!medico) notFound();
 

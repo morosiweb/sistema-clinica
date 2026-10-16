@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { authVigente as auth } from "@/lib/sesion";
 import { prisma } from "@/lib/prisma";
 import { parsePermisos, puedeVer } from "@/lib/pantallas";
 import { CalendarioTurnos } from "@/components/calendario-turnos";
@@ -14,7 +14,10 @@ export default async function AgendaPage() {
     where: { id: session.user.id },
     select: { rol: true, permisos: true, medicoId: true },
   });
-  if (!usuario || !puedeVer(parsePermisos(usuario.permisos), usuario.rol, ["agenda"])) {
+  if (
+    !usuario ||
+    !puedeVer(parsePermisos(usuario.permisos), usuario.rol, ["agenda"])
+  ) {
     redirect("/panel");
   }
   if (!usuario.medicoId) {
@@ -22,7 +25,8 @@ export default async function AgendaPage() {
       <div className="mx-auto max-w-2xl px-6 py-10">
         <h1 className="mb-4 text-xl font-semibold">Mi agenda</h1>
         <p className="text-sm text-neutral-500">
-          Tu usuario todavía no está vinculado a un médico. Pedile al admin que lo vincule en Usuarios.
+          Tu usuario todavía no está vinculado a un médico. Pedile al admin que
+          lo vincule en Usuarios.
         </p>
       </div>
     );

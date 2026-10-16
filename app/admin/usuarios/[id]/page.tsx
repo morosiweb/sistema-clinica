@@ -1,6 +1,7 @@
 import { redirect, notFound } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { authVigente as auth } from "@/lib/sesion";
 import { prisma } from "@/lib/prisma";
+import { parsePermisos, permisosPorRol } from "@/lib/pantallas";
 import { UsuarioForm } from "@/components/usuario-form";
 
 export const instant = false;
@@ -44,6 +45,8 @@ export default async function EditarUsuarioPage({
           rol: usuario.rol,
           activo: usuario.activo,
           medicoId: usuario.medicoId ?? "",
+          permisos:
+            parsePermisos(usuario.permisos) ?? permisosPorRol(usuario.rol),
         }}
       />
     </div>

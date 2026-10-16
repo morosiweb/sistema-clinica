@@ -1,68 +1,103 @@
 "use client";
-
 import { useState } from "react";
-
+import { useRouter } from "next/navigation";
+import { fetchJSON, mensajeError } from "@/lib/cliente";
 export default function RecuperarAccesoPage() {
+  const router = useRouter();
   const [dni, setDni] = useState("");
-  const [contacto, setContacto] = useState("");
-  const [enviado, setEnviado] = useState(false);
+  const [codigo, setCodigo] = useState("");
+  const [id, setId] = useState("");
+  const [mensaje, setMensaje] = useState("");
+  const [error, setError] = useState("");
   const [enviando, setEnviando] = useState(false);
-
-  const inputClass =
-    "w-full rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-800";
-
-  async function handleSubmit(e: React.FormEvent) {
+  async function enviar(e: React.FormEvent) {
     e.preventDefault();
+    setError("");
     setEnviando(true);
-    await fetch("/api/publico/recuperar", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dni, contacto }),
-    });
-    setEnviando(false);
-    // Siempre se muestra el mismo mensaje, haya o no coincidencia.
-    setEnviado(true);
+    try {
+      if (!id) {
+        const data = await fetchJSON<{
+          verificacionId: string;
+          mensaje: string;
+        }>("/api/publico/recuperar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ dni }),
+        });
+        setId(data.verificacionId);
+        setMensaje(data.mensaje);
+      } else {
+        const data = await fetchJSON<{ linkAcceso: string }>(
+          "/api/publico/verificar",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ verificacionId: id, codigo }),
+          },
+        );
+        router.push(data.linkAcceso);
+      }
+    } catch (e) {
+      setError(mensajeError(e));
+    } finally {
+      setEnviando(false);
+    }
   }
-
-  if (enviado) {
-    return (
-      <div className="mx-auto max-w-md px-6 py-16 text-center">
-        <h1 className="mb-4 text-xl font-semibold">Listo</h1>
-        <p className="text-sm text-neutral-500">
-          Si los datos coinciden con un registro, te enviamos el link a tu email.
-        </p>
-      </div>
-    );
-  }
-
   return (
-    <div className="mx-auto max-w-md px-6 py-16">
-      <h1 className="mb-2 text-xl font-semibold">Recuperar mi acceso</h1>
-      <p className="mb-6 text-sm text-neutral-500">
-        Ingresá tu DNI y el teléfono o email con el que reservaste.
+    <main className="mx-auto max-w-md space-y-4 px-6 py-16">
+      <h1 className="text-xl font-semibold">Gestionar mis turnos</h1>
+      <p className="text-sm">
+        No necesitás registrarte. Te enviamos un código al email que tiene la
+        clínica.
       </p>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-1">
-          <label className="text-sm font-medium">DNI</label>
-          <input required className={inputClass} value={dni} onChange={(e) => setDni(e.target.value)} />
-        </div>
-        <div className="space-y-1">
-          <label className="text-sm font-medium">Teléfono o email</label>
+      <form onSubmit={enviar} className="space-y-4">
+        <label className="block text-sm">
+          {id ? "Código recibido por email" : "DNI"}
           <input
+            className="mt-1 w-full rounded border p-2 dark:bg-neutral-900"
             required
-            className={inputClass}
-            value={contacto}
-            onChange={(e) => setContacto(e.target.value)}
+            inputMode="numeric"
+            autoComplete={id ? "one-time-code" : "off"}
+            pattern={id ? "[0-9]{6}" : undefined}
+            maxLength={id ? 6 : 15}
+            value={id ? codigo : dni}
+            onChange={(e) =>
+              id ? setCodigo(e.target.value) : setDni(e.target.value)
+            }
           />
-        </div>
+        </label>
+        {mensaje && <p className="text-sm">{mensaje}</p>}
+        {error && (
+          <p role="alert" className="text-sm text-red-600">
+            {error}
+          </p>
+        )}
         <button
-          type="submit"
           disabled={enviando}
-          className="w-full rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
+          className="rounded bg-neutral-900 px-4 py-2 text-sm text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
         >
-          {enviando ? "Enviando..." : "Recuperar acceso"}
+          {enviando ? "Procesando…" : id ? "Ver mis turnos" : "Recibir código"}
         </button>
+        {id && (
+          <button
+            type="button"
+            disabled={enviando}
+            className="ml-3 text-sm underline"
+            onClick={() => {
+              setId("");
+              setCodigo("");
+              setError("");
+              setMensaje("");
+            }}
+          >
+            Solicitar otro código
+          </button>
+        )}
       </form>
-    </div>
+      <p className="text-sm text-neutral-500">
+        El código vence en 10 minutos. Si tu contacto cambió o no recibís el
+        correo, comunicate con secretaría.
+      </p>
+    </main>
   );
 }

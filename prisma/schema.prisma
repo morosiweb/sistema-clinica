@@ -19,28 +19,30 @@ datasource db {
 // interno sí usa bcrypt irreversible porque ahí nunca hace falta reenviarla).
 
 model Paciente {
-  id              String    @id @default(cuid())
-  dni             String    @unique
-  nombre          String
-  apellido        String
-  telefono        String?
-  email           String?
-  fechaNacimiento DateTime?
-  obraSocial      String?
+  id                String          @id @default(cuid())
+  dni               String          @unique
+  nombre            String
+  apellido          String
+  telefono          String?
+  email             String?
+  fechaNacimiento   DateTime?
+  obraSocial        String?
   // Ficha médica básica: la carga el médico tratante (o admin), campos
   // libres sin validación clínica estricta.
-  pesoKg          Float?
-  alturaCm        Float?
-  grupoSanguineo  String?
-  alergias        String?
-  antecedentes    String?
-  tokenAccesoHash String    @unique
-  tokenAccesoEnc  String
-  tokenGeneradoEl DateTime  @default(now())
-  ausenciasSinAviso Int     @default(0)
-  turnos          Turno[]
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  pesoKg            Float?
+  alturaCm          Float?
+  grupoSanguineo    String?
+  alergias          String?
+  antecedentes      String?
+  tokenAccesoHash   String          @unique
+  tokenAccesoEnc    String
+  tokenGeneradoEl   DateTime        @default(now())
+  ausenciasSinAviso Int             @default(0)
+  versionFicha      Int             @default(0)
+  revisionesFicha   RevisionFicha[]
+  turnos            Turno[]
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
 }
 
 // ===================== MEDICOS Y AGENDA =====================
@@ -143,27 +145,30 @@ enum CanalReserva {
 }
 
 model Turno {
-  id              String           @id @default(cuid())
-  pacienteId      String
-  paciente        Paciente         @relation(fields: [pacienteId], references: [id])
-  medicoId        String
-  medico          Medico           @relation(fields: [medicoId], references: [id])
-  fecha           DateTime
-  horaInicio      String
-  horaFin         String
-  estado          EstadoTurno      @default(PENDIENTE)
-  motivoConsulta  String?
-  canalReserva    CanalReserva     @default(ONLINE)
-  notasSecretaria String?
-  notasMedico     String?
+  id                      String           @id @default(cuid())
+  pacienteId              String
+  paciente                Paciente         @relation(fields: [pacienteId], references: [id])
+  medicoId                String
+  medico                  Medico           @relation(fields: [medicoId], references: [id])
+  fecha                   DateTime
+  horaInicio              String
+  horaFin                 String
+  estado                  EstadoTurno      @default(PENDIENTE)
+  motivoConsulta          String?
+  canalReserva            CanalReserva     @default(ONLINE)
+  notasSecretaria         String?
+  notasMedico             String?
   // Control de concurrencia optimista: se verifica antes de sobreescribir.
-  version         Int              @default(0)
+  version                 Int              @default(0)
   // Evita mandar el recordatorio de 24-48hs mas de una vez para el mismo turno.
-  recordatorioEnviado Boolean      @default(false)
-  historial       HistorialTurno[]
-  pagos           Pago[]
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  recordatorioEnviado     Boolean          @default(false)
+  recordatorioError       String?
+  recordatorioIntentadoEl DateTime?
+  revisionesNotas         RevisionNota[]
+  historial               HistorialTurno[]
+  pagos                   Pago[]
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
 
   @@index([medicoId, fecha])
   @@index([pacienteId])
@@ -201,17 +206,21 @@ enum MetodoPago {
 // No hay catalogo de precios: el monto lo carga la secretaria al momento
 // de cobrar, para no forzar una lista de precios que esta fuera de alcance.
 model Pago {
-  id           String     @id @default(cuid())
-  turnoId      String
-  turno        Turno      @relation(fields: [turnoId], references: [id])
-  monto        Decimal    @db.Decimal(10, 2)
-  metodo       MetodoPago @default(EFECTIVO)
-  notas        String?
-  registradoPor String
-  fecha        DateTime   @default(now())
+  id              String     @id @default(cuid())
+  turnoId         String
+  turno           Turno      @relation(fields: [turnoId], references: [id])
+  monto           Decimal    @db.Decimal(10, 2)
+  metodo          MetodoPago @default(EFECTIVO)
+  notas           String?
+  registradoPor   String
+  anuladoEl       DateTime?
+  anuladoPor      String?
+  motivoAnulacion String?
+  fecha           DateTime   @default(now())
 
   @@index([turnoId])
   @@index([fecha])
+  @@index([anuladoEl])
 }
 
 // ===================== USUARIOS INTERNOS =====================
@@ -224,22 +233,72 @@ enum RolInterno {
 }
 
 model UsuarioInterno {
-  id       String     @id @default(cuid())
-  nombre   String
-  email    String     @unique
-  password String
-  rol      RolInterno @default(SECRETARIA)
+  id                String          @id @default(cuid())
+  nombre            String
+  email             String          @unique
+  password          String
+  rol               RolInterno      @default(SECRETARIA)
   // Si el usuario es un medico, queda vinculado a su ficha de Medico.
-  medicoId String?    @unique
-  medico   Medico?    @relation(fields: [medicoId], references: [id])
-  activo   Boolean    @default(true)
+  medicoId          String?         @unique
+  medico            Medico?         @relation(fields: [medicoId], references: [id])
+  activo            Boolean         @default(true)
   // Fuerza bruta de login: igual criterio que en ml-afiliados.
-  intentosFallidos  Int       @default(0)
+  intentosFallidos  Int             @default(0)
   bloqueadoHasta    DateTime?
   // Pantallas a las que puede entrar (lista JSON de claves). null = todas
   // (admin). No aplica a MEDICO, que siempre ve solo su propia agenda.
   permisos          String?
   bloqueosAprobados BloqueoMedico[]
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+// Códigos de un uso; no se almacena el código ni se crea una cuenta.
+model VerificacionPaciente {
+  id          String    @id
+  dni         String
+  pacienteId  String?
+  email       String?
+  proposito   String
+  codigoHash  String
+  intentos    Int       @default(0)
+  consumidoEl DateTime?
+  venceEl     DateTime
+  createdAt   DateTime  @default(now())
+
+  @@index([venceEl])
+}
+
+model LimiteSolicitud {
+  clave    String   @id
+  cantidad Int      @default(1)
+  venceEl  DateTime
+
+  @@index([venceEl])
+}
+
+model RevisionFicha {
+  id           String   @id @default(cuid())
+  pacienteId   String
+  paciente     Paciente @relation(fields: [pacienteId], references: [id])
+  version      Int
+  realizadoPor String
+  anterior     Json
+  posterior    Json
+  fecha        DateTime @default(now())
+
+  @@index([pacienteId, fecha])
+}
+
+model RevisionNota {
+  id           String   @id @default(cuid())
+  turnoId      String
+  turno        Turno    @relation(fields: [turnoId], references: [id])
+  version      Int
+  realizadoPor String
+  anterior     String?
+  posterior    String?
+  fecha        DateTime @default(now())
+
+  @@index([turnoId, fecha])
 }

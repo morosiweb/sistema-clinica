@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { authVigente as auth } from "@/lib/sesion";
 import { prisma } from "@/lib/prisma";
 import { parsePermisos, puedeVer } from "@/lib/pantallas";
+import { paginaSchema } from "@/lib/validations/comun";
 import { pacienteSelectSeguro } from "@/lib/pacientes";
 
 export const instant = false;
@@ -10,7 +11,7 @@ export const instant = false;
 export default async function PacientesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; pagina?: string }>;
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
@@ -19,11 +20,15 @@ export default async function PacientesPage({
     where: { id: session.user.id },
     select: { rol: true, permisos: true },
   });
-  if (!usuario || !puedeVer(parsePermisos(usuario.permisos), usuario.rol, ["pacientes"])) {
+  if (
+    !usuario ||
+    !puedeVer(parsePermisos(usuario.permisos), usuario.rol, ["pacientes"])
+  ) {
     redirect("/panel");
   }
 
-  const { q } = await searchParams;
+  const { q, pagina: paginaParam } = await searchParams;
+  const pagina = paginaSchema.safeParse(paginaParam).data || 1;
   const pacientes = await prisma.paciente.findMany({
     where: q
       ? {
@@ -36,7 +41,8 @@ export default async function PacientesPage({
       : undefined,
     select: pacienteSelectSeguro,
     orderBy: { apellido: "asc" },
-    take: 50,
+    take: 51,
+    skip: (pagina - 1) * 50,
   });
 
   return (
@@ -62,7 +68,7 @@ export default async function PacientesPage({
       </form>
 
       <div className="divide-y divide-neutral-200 rounded-md border border-neutral-200 dark:divide-neutral-800 dark:border-neutral-800">
-        {pacientes.map((p) => (
+        {pacientes.slice(0, 50).map((p) => (
           <Link
             key={p.id}
             href={`/pacientes/${p.id}`}
@@ -80,6 +86,28 @@ export default async function PacientesPage({
           </p>
         )}
       </div>
+      <nav
+        aria-label="Páginas de pacientes"
+        className="mt-4 flex gap-4 text-sm"
+      >
+        {pagina > 1 && (
+          <Link
+            className="underline"
+            href={`/pacientes?${new URLSearchParams({ q: q || "", pagina: String(pagina - 1) })}`}
+          >
+            Anterior
+          </Link>
+        )}
+        <span>Página {pagina}</span>
+        {pacientes.length > 50 && (
+          <Link
+            className="underline"
+            href={`/pacientes?${new URLSearchParams({ q: q || "", pagina: String(pagina + 1) })}`}
+          >
+            Siguiente
+          </Link>
+        )}
+      </nav>
     </div>
   );
 }

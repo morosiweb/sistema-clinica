@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useHoy, useRecurso } from "@/lib/cliente";
 import Link from "next/link";
 
 type Reporte = {
   total: number;
   porMetodo: Record<string, number>;
   cantidadPagos: number;
+  cantidadAnulaciones: number;
   turnosSinCobrar: {
     id: string;
     fecha: string;
@@ -20,35 +22,20 @@ const inputClass =
   "rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-800";
 
 export function ReportesClient() {
-  const [desde, setDesde] = useState("");
-  const [hasta, setHasta] = useState("");
-  const [reporte, setReporte] = useState<Reporte | null>(null);
-  const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const hoy = new Date();
-    const primerDia = new Date(Date.UTC(hoy.getUTCFullYear(), hoy.getUTCMonth(), 1));
-    setDesde(primerDia.toISOString().slice(0, 10));
-    setHasta(hoy.toISOString().slice(0, 10));
-  }, []);
-
-  useEffect(() => {
-    if (!desde || !hasta) return;
-    setCargando(true);
-    setError(null);
-    fetch(`/api/reportes/caja?desde=${desde}&hasta=${hasta}`)
-      .then(async (r) => {
-        const d = await r.json();
-        if (!r.ok) {
-          setError(d?.error ?? "No se pudo cargar el reporte.");
-          setReporte(null);
-          return;
-        }
-        setReporte(d);
-      })
-      .finally(() => setCargando(false));
-  }, [desde, hasta]);
+  const hoy = useHoy();
+  const [inicio, setDesde] = useState("");
+  const [fin, setHasta] = useState("");
+  const desde = inicio || (hoy ? `${hoy.slice(0, 7)}-01` : ""),
+    hasta = fin || hoy;
+  const {
+    data: reporte,
+    cargando,
+    error,
+  } = useRecurso<Reporte>(
+    desde && hasta
+      ? `/api/reportes/caja?${new URLSearchParams({ desde, hasta })}`
+      : null,
+  );
 
   return (
     <div className="mx-auto max-w-2xl px-6 py-10">
@@ -56,12 +43,34 @@ export function ReportesClient() {
 
       <div className="mb-6 flex items-end gap-2">
         <div className="space-y-1">
-          <label className="text-xs text-neutral-500">Desde</label>
-          <input type="date" className={inputClass} value={desde} onChange={(e) => setDesde(e.target.value)} />
+          <label
+            htmlFor="reportes-client-campo-1"
+            className="text-xs text-neutral-500"
+          >
+            Desde
+          </label>
+          <input
+            id="reportes-client-campo-1"
+            type="date"
+            className={inputClass}
+            value={desde}
+            onChange={(e) => setDesde(e.target.value)}
+          />
         </div>
         <div className="space-y-1">
-          <label className="text-xs text-neutral-500">Hasta</label>
-          <input type="date" className={inputClass} value={hasta} onChange={(e) => setHasta(e.target.value)} />
+          <label
+            htmlFor="reportes-client-campo-2"
+            className="text-xs text-neutral-500"
+          >
+            Hasta
+          </label>
+          <input
+            id="reportes-client-campo-2"
+            type="date"
+            className={inputClass}
+            value={hasta}
+            onChange={(e) => setHasta(e.target.value)}
+          />
         </div>
       </div>
 
@@ -73,8 +82,13 @@ export function ReportesClient() {
           <section>
             <h2 className="mb-3 text-lg font-semibold">Caja</h2>
             <div className="rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
-              <p className="text-2xl font-semibold">${reporte.total.toFixed(2)}</p>
-              <p className="text-sm text-neutral-500">{reporte.cantidadPagos} cobros en el período</p>
+              <p className="text-2xl font-semibold">
+                ${reporte.total.toFixed(2)}
+              </p>
+              <p className="text-sm text-neutral-500">
+                {reporte.cantidadPagos} cobros y {reporte.cantidadAnulaciones}{" "}
+                anulaciones en el período
+              </p>
               <div className="mt-3 space-y-1 text-sm">
                 {Object.entries(reporte.porMetodo).map(([metodo, monto]) => (
                   <div key={metodo} className="flex justify-between">
@@ -98,8 +112,10 @@ export function ReportesClient() {
                   className="flex items-center justify-between px-4 py-3 text-sm hover:bg-neutral-50 dark:hover:bg-neutral-900"
                 >
                   <span>
-                    {new Date(t.fecha).toLocaleDateString("es-AR", { timeZone: "UTC" })} · {t.horaInicio} ·{" "}
-                    {t.paciente}
+                    {new Date(t.fecha).toLocaleDateString("es-AR", {
+                      timeZone: "UTC",
+                    })}{" "}
+                    · {t.horaInicio} · {t.paciente}
                   </span>
                   <span className="text-neutral-500">{t.medico}</span>
                 </Link>

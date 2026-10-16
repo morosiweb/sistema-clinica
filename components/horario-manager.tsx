@@ -1,123 +1,195 @@
 "use client";
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-
-const DIAS = ["LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO", "DOMINGO"] as const;
-const DIA_LABEL: Record<(typeof DIAS)[number], string> = {
-  LUNES: "Lunes",
-  MARTES: "Martes",
-  MIERCOLES: "Miércoles",
-  JUEVES: "Jueves",
-  VIERNES: "Viernes",
-  SABADO: "Sábado",
-  DOMINGO: "Domingo",
+import { fetchJSON, mensajeError } from "@/lib/cliente";
+const DIAS = [
+  "LUNES",
+  "MARTES",
+  "MIERCOLES",
+  "JUEVES",
+  "VIERNES",
+  "SABADO",
+  "DOMINGO",
+] as const;
+type Horario = {
+  id: string;
+  diaSemana: (typeof DIAS)[number];
+  horaInicio: string;
+  horaFin: string;
+  duracionTurno?: number | null;
+  vigenteDesde?: Date | null;
+  vigenteHasta?: Date | null;
 };
-
-type Horario = { id: string; diaSemana: (typeof DIAS)[number]; horaInicio: string; horaFin: string };
-
-export function HorarioManager({ medicoId, horarios }: { medicoId: string; horarios: Horario[] }) {
+export function HorarioManager({
+  medicoId,
+  horarios,
+}: {
+  medicoId: string;
+  horarios: Horario[];
+}) {
   const router = useRouter();
-  const [diaSemana, setDiaSemana] = useState<(typeof DIAS)[number]>("LUNES");
-  const [horaInicio, setHoraInicio] = useState("09:00");
-  const [horaFin, setHoraFin] = useState("13:00");
-  const [error, setError] = useState<string | null>(null);
-
-  const inputClass =
-    "rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-800";
-
+  const [diaSemana, setDia] = useState<(typeof DIAS)[number]>("LUNES");
+  const [horaInicio, setInicio] = useState("09:00");
+  const [horaFin, setFin] = useState("13:00");
+  const [duracion, setDuracion] = useState("");
+  const [desde, setDesde] = useState("");
+  const [hasta, setHasta] = useState("");
+  const [error, setError] = useState("");
+  const [ocupado, setOcupado] = useState(false);
   async function agregar(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
-    const res = await fetch(`/api/medicos/${medicoId}/horarios`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ diaSemana, horaInicio, horaFin }),
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => null);
-      setError(body?.error && typeof body.error === "string" ? body.error : "No se pudo agregar.");
-      return;
+    setError("");
+    setOcupado(true);
+    try {
+      await fetchJSON(`/api/medicos/${medicoId}/horarios`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          diaSemana,
+          horaInicio,
+          horaFin,
+          duracionTurno: duracion ? Number(duracion) : null,
+          vigenteDesde: desde,
+          vigenteHasta: hasta,
+        }),
+      });
+      router.refresh();
+    } catch (e) {
+      setError(mensajeError(e));
+    } finally {
+      setOcupado(false);
     }
-    router.refresh();
   }
-
-  async function eliminar(horarioId: string) {
-    await fetch(`/api/medicos/${medicoId}/horarios/${horarioId}`, { method: "DELETE" });
-    router.refresh();
+  async function eliminar(id: string) {
+    if (
+      !confirm(
+        "¿Eliminar este bloque de disponibilidad? Los turnos existentes se conservan.",
+      )
+    )
+      return;
+    setError("");
+    setOcupado(true);
+    try {
+      await fetchJSON(`/api/medicos/${medicoId}/horarios/${id}`, {
+        method: "DELETE",
+      });
+      router.refresh();
+    } catch (e) {
+      setError(mensajeError(e));
+    } finally {
+      setOcupado(false);
+    }
   }
-
-  const porDia = DIAS.map((dia) => ({
-    dia,
-    bloques: horarios.filter((h) => h.diaSemana === dia),
-  }));
-
+  const input = "mt-1 w-full rounded border p-2 dark:bg-neutral-900";
   return (
     <div className="space-y-4">
-      <form onSubmit={agregar} className="flex flex-wrap items-end gap-2">
-        <div className="space-y-1">
-          <label className="text-xs text-neutral-500">Día</label>
+      <form onSubmit={agregar} className="grid gap-3 sm:grid-cols-2">
+        <label className="text-sm">
+          Día
           <select
-            className={inputClass}
+            className={input}
             value={diaSemana}
-            onChange={(e) => setDiaSemana(e.target.value as (typeof DIAS)[number])}
+            onChange={(e) => setDia(e.target.value as typeof diaSemana)}
           >
             {DIAS.map((d) => (
-              <option key={d} value={d}>
-                {DIA_LABEL[d]}
-              </option>
+              <option key={d}>{d}</option>
             ))}
           </select>
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs text-neutral-500">Desde</label>
+        </label>
+        <label className="text-sm">
+          Duración en minutos (opcional)
           <input
+            type="number"
+            min={5}
+            max={240}
+            className={input}
+            value={duracion}
+            onChange={(e) => setDuracion(e.target.value)}
+            placeholder="Usar duración del médico"
+          />
+        </label>
+        <label className="text-sm">
+          Desde
+          <input
+            required
             type="time"
-            className={inputClass}
+            className={input}
             value={horaInicio}
-            onChange={(e) => setHoraInicio(e.target.value)}
+            onChange={(e) => setInicio(e.target.value)}
           />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs text-neutral-500">Hasta</label>
+        </label>
+        <label className="text-sm">
+          Hasta
           <input
+            required
             type="time"
-            className={inputClass}
+            className={input}
             value={horaFin}
-            onChange={(e) => setHoraFin(e.target.value)}
+            onChange={(e) => setFin(e.target.value)}
           />
-        </div>
+        </label>
+        <label className="text-sm">
+          Vigente desde (opcional)
+          <input
+            type="date"
+            className={input}
+            value={desde}
+            onChange={(e) => setDesde(e.target.value)}
+          />
+        </label>
+        <label className="text-sm">
+          Vigente hasta (opcional)
+          <input
+            type="date"
+            className={input}
+            value={hasta}
+            onChange={(e) => setHasta(e.target.value)}
+          />
+        </label>
         <button
-          type="submit"
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+          disabled={ocupado}
+          className="rounded bg-neutral-900 p-2 text-sm text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
         >
           Agregar bloque
         </button>
       </form>
-
-      {error && <p className="text-sm text-red-600">{error}</p>}
-
-      <div className="space-y-2">
-        {porDia.map(({ dia, bloques }) => (
-          <div key={dia} className="flex items-start gap-3 text-sm">
-            <span className="w-24 shrink-0 text-neutral-500">{DIA_LABEL[dia]}</span>
-            <div className="flex flex-1 flex-wrap gap-2">
-              {bloques.length === 0 && <span className="text-neutral-400">—</span>}
-              {bloques.map((b) => (
-                <span
-                  key={b.id}
-                  className="flex items-center gap-2 rounded-md border border-neutral-200 px-2 py-1 dark:border-neutral-800"
-                >
-                  {b.horaInicio}–{b.horaFin}
-                  <button onClick={() => eliminar(b.id)} className="text-neutral-400 hover:text-red-600">
-                    ×
-                  </button>
+      {error && (
+        <p role="alert" className="text-sm text-red-600">
+          {error}
+        </p>
+      )}
+      {DIAS.map((d) => (
+        <div key={d} className="space-y-2 text-sm">
+          <p className="font-medium">{d}</p>
+          {horarios
+            .filter((h) => h.diaSemana === d)
+            .map((h) => (
+              <div
+                key={h.id}
+                className="flex items-center justify-between gap-3 rounded border p-2"
+              >
+                <span>
+                  {h.horaInicio}–{h.horaFin}
+                  {h.duracionTurno ? ` · ${h.duracionTurno} min` : ""}
+                  {h.vigenteDesde
+                    ? ` · desde ${new Date(h.vigenteDesde).toISOString().slice(0, 10)}`
+                    : ""}
+                  {h.vigenteHasta
+                    ? ` · hasta ${new Date(h.vigenteHasta).toISOString().slice(0, 10)}`
+                    : ""}
                 </span>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
+                <button
+                  disabled={ocupado}
+                  aria-label={`Eliminar ${d} ${h.horaInicio}`}
+                  className="text-red-600 underline"
+                  onClick={() => eliminar(h.id)}
+                >
+                  Eliminar
+                </button>
+              </div>
+            ))}
+        </div>
+      ))}
     </div>
   );
 }

@@ -19,7 +19,10 @@ async function sesionVigente(claves?: readonly string[]) {
   session.user.rol = usuario.rol;
   session.user.medicoId = usuario.medicoId;
 
-  if (claves && !puedeVer(parsePermisos(usuario.permisos), usuario.rol, claves)) {
+  if (
+    claves &&
+    !puedeVer(parsePermisos(usuario.permisos), usuario.rol, claves)
+  ) {
     return "sin-acceso" as const;
   }
   return session;
@@ -28,10 +31,16 @@ async function sesionVigente(claves?: readonly string[]) {
 export async function requireSession(claves?: readonly string[]) {
   const session = await sesionVigente(claves);
   if (session === null) {
-    return { session: null, response: NextResponse.json({ error: "No autorizado" }, { status: 401 }) };
+    return {
+      session: null,
+      response: NextResponse.json({ error: "No autorizado" }, { status: 401 }),
+    };
   }
   if (session === "sin-acceso") {
-    return { session: null, response: NextResponse.json({ error: "Sin acceso" }, { status: 403 }) };
+    return {
+      session: null,
+      response: NextResponse.json({ error: "Sin acceso" }, { status: 403 }),
+    };
   }
   return { session, response: null };
 }
@@ -39,10 +48,16 @@ export async function requireSession(claves?: readonly string[]) {
 export async function requireAdmin() {
   const session = await sesionVigente();
   if (session === null || session === "sin-acceso") {
-    return { session: null, response: NextResponse.json({ error: "No autorizado" }, { status: 401 }) };
+    return {
+      session: null,
+      response: NextResponse.json({ error: "No autorizado" }, { status: 401 }),
+    };
   }
   if (session.user.rol !== "ADMIN") {
-    return { session: null, response: NextResponse.json({ error: "Sin acceso" }, { status: 403 }) };
+    return {
+      session: null,
+      response: NextResponse.json({ error: "Sin acceso" }, { status: 403 }),
+    };
   }
   return { session, response: null };
 }

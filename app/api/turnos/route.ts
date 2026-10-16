@@ -1,14 +1,18 @@
+import { conErrores } from "@/lib/errores";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/api-auth";
+import { turnoParaInterno } from "@/lib/turno-dto";
+import { fechaSchema } from "@/lib/validations/comun";
 import { crearTurnoSchema } from "@/lib/validations/turno";
 import { crearTurno, HorarioOcupadoError } from "@/lib/turnos";
 
-export async function GET(request: NextRequest) {
+async function GETHandler(request: NextRequest) {
   const { session, response } = await requireSession(["turnos", "agenda"]);
   if (!session) return response;
 
   const fecha = request.nextUrl.searchParams.get("fecha");
+  if (fecha) fechaSchema.parse(fecha);
   const medicoId = request.nextUrl.searchParams.get("medicoId");
 
   // Un MEDICO solo puede ver su propia agenda, salvo que tenga permiso de "turnos".
@@ -18,26 +22,42 @@ export async function GET(request: NextRequest) {
     where: {
       ...(fecha ? { fecha: new Date(`${fecha}T00:00:00.000Z`) } : {}),
       ...(medicoId ? { medicoId } : {}),
-      ...(esSoloAgenda ? { medicoId: session.user.medicoId ?? "__ninguno__" } : {}),
+      ...(esSoloAgenda
+        ? { medicoId: session.user.medicoId ?? "__ninguno__" }
+        : {}),
     },
     include: {
-      paciente: { select: { id: true, nombre: true, apellido: true, dni: true, telefono: true } },
+      paciente: {
+        select: {
+          id: true,
+          nombre: true,
+          apellido: true,
+          dni: true,
+          telefono: true,
+        },
+      },
       medico: { include: { especialidad: true } },
     },
     orderBy: [{ fecha: "asc" }, { horaInicio: "asc" }],
+    take: 200,
   });
 
-  return NextResponse.json(turnos);
+  return NextResponse.json(
+    turnos.map((t) => turnoParaInterno(t, session.user)),
+  );
 }
 
-export async function POST(request: NextRequest) {
+async function POSTHandler(request: NextRequest) {
   const { session, response } = await requireSession(["turnos"]);
   if (!session) return response;
 
   const body = await request.json();
   const parsed = crearTurnoSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message || "Datos inválidos" },
+      { status: 400 },
+    );
   }
   const data = parsed.data;
 
@@ -54,8 +74,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(turno, { status: 201 });
   } catch (e) {
     if (e instanceof HorarioOcupadoError) {
-      return NextResponse.json({ error: "Ese horario ya fue tomado, elegí otro." }, { status: 409 });
+      return NextResponse.json(
+        { error: "Ese horario ya fue tomado, elegí otro." },
+        { status: 409 },
+      );
     }
     throw e;
   }
 }
+
+export const GET = conErrores(GETHandler);
+export const POST = conErrores(POSTHandler);

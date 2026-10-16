@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { authVigente as auth } from "@/lib/sesion";
 import { prisma } from "@/lib/prisma";
 import { parsePermisos, puedeVer } from "@/lib/pantallas";
 import { PacienteForm } from "@/components/paciente-form";
@@ -14,7 +14,10 @@ export default async function NuevoPacientePage() {
     where: { id: session.user.id },
     select: { rol: true, permisos: true },
   });
-  if (!usuario || !puedeVer(parsePermisos(usuario.permisos), usuario.rol, ["pacientes"])) {
+  if (
+    !usuario ||
+    !puedeVer(parsePermisos(usuario.permisos), usuario.rol, ["pacientes"])
+  ) {
     redirect("/panel");
   }
 

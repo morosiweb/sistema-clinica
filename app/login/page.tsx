@@ -12,17 +12,31 @@ export default function LoginPage() {
   const [cargando, setCargando] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setCargando(true);
-    const res = await signIn("credentials", { email, password, redirect: false });
-    setCargando(false);
-    if (res?.error) {
-      setError("Email o contraseña incorrectos.");
-      return;
+    try {
+      e.preventDefault();
+      setError(null);
+      setCargando(true);
+      const res = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
+
+      if (res?.error) {
+        setError("Email o contraseña incorrectos.");
+        return;
+      }
+      router.push("/panel");
+      router.refresh();
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo conectar. Intentá nuevamente.",
+      );
+    } finally {
+      setCargando(false);
     }
-    router.push("/panel");
-    router.refresh();
   }
 
   return (

@@ -8,7 +8,7 @@ const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  const email = process.env.SEED_ADMIN_EMAIL ?? "admin@sistema-clinica.com";
+  const email = (process.env.SEED_ADMIN_EMAIL ?? "admin@sistema-clinica.com").trim().toLowerCase();
   const existente = await prisma.usuarioInterno.findUnique({ where: { email } });
   if (existente) {
     console.log(`Ya existe un usuario admin con email ${email}, no se crea de nuevo.`);

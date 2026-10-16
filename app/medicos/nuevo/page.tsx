@@ -1,5 +1,6 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { authVigente as auth } from "@/lib/sesion";
 import { prisma } from "@/lib/prisma";
 import { parsePermisos, puedeVer } from "@/lib/pantallas";
 import { MedicoForm } from "@/components/medico-form";
@@ -14,7 +15,10 @@ export default async function NuevoMedicoPage() {
     where: { id: session.user.id },
     select: { rol: true, permisos: true },
   });
-  if (!usuario || !puedeVer(parsePermisos(usuario.permisos), usuario.rol, ["medicos"])) {
+  if (
+    !usuario ||
+    !puedeVer(parsePermisos(usuario.permisos), usuario.rol, ["medicos"])
+  ) {
     redirect("/panel");
   }
 
@@ -29,9 +33,9 @@ export default async function NuevoMedicoPage() {
         <h1 className="mb-4 text-xl font-semibold">Nuevo médico</h1>
         <p className="text-sm text-neutral-500">
           Primero tenés que cargar al menos una especialidad en{" "}
-          <a href="/especialidades" className="underline">
+          <Link href="/especialidades" className="underline">
             Especialidades
-          </a>
+          </Link>
           .
         </p>
       </div>

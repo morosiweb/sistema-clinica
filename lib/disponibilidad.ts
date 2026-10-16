@@ -1,7 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import type { DiaSemana } from "@/app/generated/prisma/client";
+import type { Transaccion } from "@/lib/transaccion";
+import { fechaDB, instanteClinica } from "@/lib/fecha";
+import { fechaSchema } from "@/lib/validations/comun";
 
-const DIAS_POR_INDICE: DiaSemana[] = [
+const DIAS: DiaSemana[] = [
   "DOMINGO",
   "LUNES",
   "MARTES",
@@ -10,75 +13,89 @@ const DIAS_POR_INDICE: DiaSemana[] = [
   "VIERNES",
   "SABADO",
 ];
-
-function minutosDesdeMedianoche(hhmm: string): number {
-  const [h, m] = hhmm.split(":").map(Number);
+export function minutos(hora: string) {
+  const [h, m] = hora.split(":").map(Number);
   return h * 60 + m;
 }
-
-function hhmm(minutos: number): string {
-  const h = Math.floor(minutos / 60)
+export function horaDesdeMinutos(t: number) {
+  return `${Math.floor(t / 60)
     .toString()
-    .padStart(2, "0");
-  const m = (minutos % 60).toString().padStart(2, "0");
-  return `${h}:${m}`;
+    .padStart(2, "0")}:${(t % 60).toString().padStart(2, "0")}`;
+}
+export function solapa(a: string, b: string, c: string, d: string) {
+  return a < d && b > c;
 }
 
-// fechaISO: "YYYY-MM-DD". Calcula los horarios de inicio disponibles ese día
-// para el médico: horario base del día - turnos ya tomados - bloqueos aprobados.
-// No se pre-generan ni guardan: se calculan en el momento, como pide el plan.
-export async function obtenerSlotsDisponibles(medicoId: string, fechaISO: string): Promise<string[]> {
-  const fecha = new Date(`${fechaISO}T00:00:00.000Z`);
-  const diaSemana = DIAS_POR_INDICE[fecha.getUTCDay()];
-
-  const medico = await prisma.medico.findUnique({
+export async function slotsDetallados(
+  medicoId: string,
+  dia: string,
+  db: Transaccion = prisma,
+  excluirTurnoId?: string,
+) {
+  fechaSchema.parse(dia);
+  const fecha = fechaDB(dia);
+  const medico = await db.medico.findUnique({
     where: { id: medicoId },
-    select: { duracionTurnoMinutos: true },
+    select: { activo: true, duracionTurnoMinutos: true },
   });
-  if (!medico) return [];
-
+  if (!medico?.activo) return [];
   const [horarios, turnos, bloqueos] = await Promise.all([
-    prisma.horarioMedico.findMany({ where: { medicoId, diaSemana } }),
-    prisma.turno.findMany({
-      where: { medicoId, fecha, estado: { not: "CANCELADO" } },
+    db.horarioMedico.findMany({
+      where: {
+        medicoId,
+        diaSemana: DIAS[fecha.getUTCDay()],
+        AND: [
+          { OR: [{ vigenteDesde: null }, { vigenteDesde: { lte: fecha } }] },
+          { OR: [{ vigenteHasta: null }, { vigenteHasta: { gte: fecha } }] },
+        ],
+      },
+    }),
+    db.turno.findMany({
+      where: {
+        medicoId,
+        fecha,
+        estado: { not: "CANCELADO" },
+        ...(excluirTurnoId ? { id: { not: excluirTurnoId } } : {}),
+      },
       select: { horaInicio: true, horaFin: true },
     }),
-    prisma.bloqueoMedico.findMany({
+    db.bloqueoMedico.findMany({
       where: { medicoId, fecha, estado: "APROBADO" },
       select: { horaInicio: true, horaFin: true },
     }),
   ]);
-
   const ocupados = [
-    ...turnos.map((t) => ({
-      inicio: minutosDesdeMedianoche(t.horaInicio),
-      fin: minutosDesdeMedianoche(t.horaFin),
-    })),
+    ...turnos,
     ...bloqueos.map((b) => ({
-      inicio: b.horaInicio ? minutosDesdeMedianoche(b.horaInicio) : 0,
-      fin: b.horaFin ? minutosDesdeMedianoche(b.horaFin) : 24 * 60,
+      horaInicio: b.horaInicio ?? "00:00",
+      horaFin: b.horaFin ?? "24:00",
     })),
   ];
-
-  const duracion = medico.duracionTurnoMinutos;
-  const slots: string[] = [];
-
-  // El horario del médico se guarda como string "wall clock", sin huso
-  // horario propio (misma convención que el resto de la app). Si la fecha
-  // pedida es hoy, no se puede ofrecer un horario que ya pasó.
-  const ahora = new Date();
-  const esHoy = fechaISO === ahora.toISOString().slice(0, 10);
-  const minutoActual = ahora.getUTCHours() * 60 + ahora.getUTCMinutes();
-
+  const resultado = new Map<string, { horaInicio: string; horaFin: string }>();
+  const ahora = Date.now();
   for (const h of horarios) {
-    const inicioBloque = minutosDesdeMedianoche(h.horaInicio);
-    const finBloque = minutosDesdeMedianoche(h.horaFin);
-    for (let t = inicioBloque; t + duracion <= finBloque; t += duracion) {
-      if (esHoy && t <= minutoActual) continue;
-      const solapa = ocupados.some((o) => t < o.fin && t + duracion > o.inicio);
-      if (!solapa) slots.push(hhmm(t));
+    const duracion = h.duracionTurno ?? medico.duracionTurnoMinutos;
+    for (
+      let t = minutos(h.horaInicio);
+      t + duracion <= minutos(h.horaFin);
+      t += duracion
+    ) {
+      const horaInicio = horaDesdeMinutos(t),
+        horaFin = horaDesdeMinutos(t + duracion);
+      if (instanteClinica(dia, horaInicio).getTime() <= ahora) continue;
+      if (
+        !ocupados.some((o) =>
+          solapa(horaInicio, horaFin, o.horaInicio, o.horaFin),
+        )
+      )
+        resultado.set(horaInicio, { horaInicio, horaFin });
     }
   }
+  return [...resultado.values()].sort((a, b) =>
+    a.horaInicio.localeCompare(b.horaInicio),
+  );
+}
 
-  return slots.sort();
+export async function obtenerSlotsDisponibles(medicoId: string, fecha: string) {
+  return (await slotsDetallados(medicoId, fecha)).map((s) => s.horaInicio);
 }

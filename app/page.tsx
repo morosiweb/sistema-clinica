@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { authVigente as auth } from "@/lib/sesion";
 
 export const instant = false;
 
@@ -22,8 +22,8 @@ export default async function LandingPage() {
           Sacá tu turno en un par de clicks
         </h1>
         <p className="mt-4 max-w-md text-neutral-500">
-          Elegí el médico, el día y el horario que te quede mejor. Sin esperar al teléfono, sin
-          registrarte.
+          Elegí el médico, el día y el horario que te quede mejor. Sin esperar
+          al teléfono, sin registrarte.
         </p>
 
         <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">

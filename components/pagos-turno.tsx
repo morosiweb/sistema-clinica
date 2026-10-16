@@ -10,11 +10,20 @@ export type Pago = {
   notas: string | null;
   registradoPor: string;
   fecha: string;
+  anuladoEl: string | null;
+  anuladoPor: string | null;
+  motivoAnulacion: string | null;
 };
 
 const METODOS = ["EFECTIVO", "TRANSFERENCIA", "TARJETA", "OTRO"] as const;
 
-export function PagosTurno({ turnoId, pagos }: { turnoId: string; pagos: Pago[] }) {
+export function PagosTurno({
+  turnoId,
+  pagos,
+}: {
+  turnoId: string;
+  pagos: Pago[];
+}) {
   const router = useRouter();
   const [monto, setMonto] = useState("");
   const [metodo, setMetodo] = useState<(typeof METODOS)[number]>("EFECTIVO");
@@ -24,31 +33,66 @@ export function PagosTurno({ turnoId, pagos }: { turnoId: string; pagos: Pago[] 
   const inputClass =
     "rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-800";
 
-  const total = pagos.reduce((acc, p) => acc + Number(p.monto), 0);
+  const total =
+    pagos.reduce(
+      (acc, p) => acc + (p.anuladoEl ? 0 : Math.round(Number(p.monto) * 100)),
+      0,
+    ) / 100;
 
   async function agregar(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setGuardando(true);
-    const res = await fetch(`/api/turnos/${turnoId}/pagos`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ monto, metodo }),
-    });
-    setGuardando(false);
-    if (!res.ok) {
-      const body = await res.json().catch(() => null);
-      setError(body?.error && typeof body.error === "string" ? body.error : "No se pudo registrar el pago.");
-      return;
+    try {
+      e.preventDefault();
+      setError(null);
+      setGuardando(true);
+      const res = await fetch(`/api/turnos/${turnoId}/pagos`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ monto, metodo }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        setError(
+          body?.error && typeof body.error === "string"
+            ? body.error
+            : "No se pudo registrar el pago.",
+        );
+        return;
+      }
+      setMonto("");
+      router.refresh();
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo conectar. Intentá nuevamente.",
+      );
+    } finally {
+      setGuardando(false);
     }
-    setMonto("");
-    router.refresh();
   }
 
   async function eliminar(pagoId: string) {
-    if (!confirm("¿Eliminar este pago?")) return;
-    await fetch(`/api/turnos/${turnoId}/pagos/${pagoId}`, { method: "DELETE" });
-    router.refresh();
+    const motivo = prompt(
+      "Motivo de la anulación (mínimo cinco caracteres). El cobro quedará en el historial:",
+    );
+    if (motivo === null) return;
+    setGuardando(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/turnos/${turnoId}/pagos/${pagoId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ motivo }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "No se pudo anular");
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo conectar");
+    } finally {
+      setGuardando(false);
+    }
   }
 
   return (
@@ -61,14 +105,28 @@ export function PagosTurno({ turnoId, pagos }: { turnoId: string; pagos: Pago[] 
       {pagos.length > 0 && (
         <div className="divide-y divide-neutral-200 rounded-md border border-neutral-200 text-sm dark:divide-neutral-800 dark:border-neutral-800">
           {pagos.map((p) => (
-            <div key={p.id} className="flex items-center justify-between px-3 py-2">
+            <div
+              key={p.id}
+              className="flex items-center justify-between px-3 py-2"
+            >
               <span>
                 ${Number(p.monto).toFixed(2)} · {p.metodo} ·{" "}
                 {new Date(p.fecha).toLocaleDateString("es-AR")}
               </span>
-              <button onClick={() => eliminar(p.id)} className="text-red-600 underline">
-                Eliminar
-              </button>
+              {p.anuladoEl ? (
+                <span className="text-xs text-neutral-500">
+                  Anulado: {p.motivoAnulacion} ·{" "}
+                  {new Date(p.anuladoEl).toLocaleString("es-AR")}
+                </span>
+              ) : (
+                <button
+                  disabled={guardando}
+                  onClick={() => eliminar(p.id)}
+                  className="text-red-600 underline"
+                >
+                  Anular
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -76,8 +134,14 @@ export function PagosTurno({ turnoId, pagos }: { turnoId: string; pagos: Pago[] 
 
       <form onSubmit={agregar} className="flex flex-wrap items-end gap-2">
         <div className="space-y-1">
-          <label className="text-xs text-neutral-500">Monto</label>
+          <label
+            htmlFor="pagos-turno-campo-1"
+            className="text-xs text-neutral-500"
+          >
+            Monto
+          </label>
           <input
+            id="pagos-turno-campo-1"
             type="number"
             min="0.01"
             step="0.01"
@@ -88,11 +152,19 @@ export function PagosTurno({ turnoId, pagos }: { turnoId: string; pagos: Pago[] 
           />
         </div>
         <div className="space-y-1">
-          <label className="text-xs text-neutral-500">Método</label>
+          <label
+            htmlFor="pagos-turno-campo-2"
+            className="text-xs text-neutral-500"
+          >
+            Método
+          </label>
           <select
+            id="pagos-turno-campo-2"
             className={inputClass}
             value={metodo}
-            onChange={(e) => setMetodo(e.target.value as (typeof METODOS)[number])}
+            onChange={(e) =>
+              setMetodo(e.target.value as (typeof METODOS)[number])
+            }
           >
             {METODOS.map((m) => (
               <option key={m} value={m}>

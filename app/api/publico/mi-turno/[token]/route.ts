@@ -1,29 +1,33 @@
+import { conErrores } from "@/lib/errores";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { hashToken } from "@/lib/token";
-
-export async function GET(_request: NextRequest, { params }: { params: Promise<{ token: string }> }) {
-  const { token } = await params;
-  const paciente = await prisma.paciente.findUnique({
-    where: { tokenAccesoHash: hashToken(token) },
-  });
-  // Mensaje genérico: nunca revelar si el token existe o no.
-  if (!paciente) {
-    return NextResponse.json({ error: "Link inválido o vencido." }, { status: 404 });
-  }
-
+import { pacientePorToken } from "@/lib/turnos";
+import { paginaSchema } from "@/lib/validations/comun";
+import { turnoPublicoSelect } from "@/lib/turno-dto";
+async function GETHandler(
+  request: NextRequest,
+  { params }: { params: Promise<{ token: string }> },
+) {
+  const paciente = await pacientePorToken((await params).token);
+  const pagina = paginaSchema.parse(
+    request.nextUrl.searchParams.get("pagina") ?? undefined,
+  );
   const turnos = await prisma.turno.findMany({
     where: { pacienteId: paciente.id },
-    include: { medico: { include: { especialidad: true } } },
-    orderBy: [{ fecha: "desc" }, { horaInicio: "desc" }],
+    select: turnoPublicoSelect,
+    orderBy: [{ fecha: "desc" }, { horaInicio: "desc" }, { id: "asc" }],
+    skip: (pagina - 1) * 50,
+    take: 51,
   });
-
   return NextResponse.json({
     paciente: {
       nombre: paciente.nombre,
       apellido: paciente.apellido,
       dni: paciente.dni,
     },
-    turnos,
+    turnos: turnos.slice(0, 50),
+    hayMas: turnos.length > 50,
   });
 }
+
+export const GET = conErrores(GETHandler);

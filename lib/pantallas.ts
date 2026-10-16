@@ -12,10 +12,34 @@ export type Pantalla = {
 };
 
 export const PANTALLAS: readonly Pantalla[] = [
-  { key: "pacientes", label: "Pacientes", grupo: "Operación", href: "/pacientes", implementada: true },
-  { key: "turnos", label: "Turnos", grupo: "Operación", href: "/turnos", implementada: true },
-  { key: "agenda", label: "Mi agenda", grupo: "Operación", href: "/agenda", implementada: true },
-  { key: "medicos", label: "Médicos", grupo: "Administración", href: "/medicos", implementada: true },
+  {
+    key: "pacientes",
+    label: "Pacientes",
+    grupo: "Operación",
+    href: "/pacientes",
+    implementada: true,
+  },
+  {
+    key: "turnos",
+    label: "Turnos",
+    grupo: "Operación",
+    href: "/turnos",
+    implementada: true,
+  },
+  {
+    key: "agenda",
+    label: "Mi agenda",
+    grupo: "Operación",
+    href: "/agenda",
+    implementada: true,
+  },
+  {
+    key: "medicos",
+    label: "Médicos",
+    grupo: "Administración",
+    href: "/medicos",
+    implementada: true,
+  },
   {
     key: "especialidades",
     label: "Especialidades",
@@ -23,9 +47,27 @@ export const PANTALLAS: readonly Pantalla[] = [
     href: "/especialidades",
     implementada: true,
   },
-  { key: "bloqueos", label: "Licencias", grupo: "Administración", href: "/bloqueos" },
-  { key: "reportes", label: "Reportes", grupo: "Administración", href: "/reportes", implementada: true },
-  { key: "usuarios", label: "Usuarios", grupo: "Administración", href: "/admin/usuarios", implementada: true },
+  {
+    key: "bloqueos",
+    label: "Licencias",
+    grupo: "Administración",
+    href: "/bloqueos",
+    implementada: true,
+  },
+  {
+    key: "reportes",
+    label: "Reportes",
+    grupo: "Administración",
+    href: "/reportes",
+    implementada: true,
+  },
+  {
+    key: "usuarios",
+    label: "Usuarios",
+    grupo: "Administración",
+    href: "/admin/usuarios",
+    implementada: true,
+  },
 ] as const;
 
 // Usuario.permisos es un String? con JSON de claves de PANTALLAS.
@@ -50,18 +92,23 @@ export function serializarPermisos(claves: string[]): string {
 export function puedeVer(
   permisos: string[] | null,
   rol: RolInterno,
-  claves: readonly string[]
+  claves: readonly string[],
 ): boolean {
   if (rol === "ADMIN") return true;
-  if (permisos === null) return true;
-  return claves.some((clave) => permisos.includes(clave));
+  const permitidas = permisos ?? permisosPorRol(rol);
+  const maximas = permisosPorRol(rol);
+  return claves.some(
+    (clave) => maximas.includes(clave) && permitidas.includes(clave),
+  );
 }
 
 export function pantallasPermitidas(
   permisos: string[] | null,
-  rol: RolInterno
+  rol: RolInterno,
 ): Pantalla[] {
-  return PANTALLAS.filter((p) => p.implementada && puedeVer(permisos, rol, [p.key]));
+  return PANTALLAS.filter(
+    (p) => p.implementada && puedeVer(permisos, rol, [p.key]),
+  );
 }
 
 export function hrefDe(clave: string): string | undefined {
@@ -70,7 +117,20 @@ export function hrefDe(clave: string): string | undefined {
 
 export function primerHrefPermitido(
   permisos: string[] | null,
-  rol: RolInterno
+  rol: RolInterno,
 ): string {
   return pantallasPermitidas(permisos, rol)[0]?.href ?? "/login";
+}
+
+export function permisosPorRol(rol: RolInterno): string[] {
+  if (rol === "ADMIN") return PANTALLAS.map((p) => p.key);
+  if (rol === "MEDICO") return ["agenda", "bloqueos"];
+  return [
+    "pacientes",
+    "turnos",
+    "medicos",
+    "especialidades",
+    "bloqueos",
+    "reportes",
+  ];
 }

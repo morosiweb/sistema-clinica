@@ -1,63 +1,107 @@
+import { conErrores } from "@/lib/errores";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { reservaPublicaSchema } from "@/lib/validations/publico";
-import { obtenerOCrearPaciente } from "@/lib/pacientes";
-import { crearTurno, HorarioOcupadoError } from "@/lib/turnos";
+import { crearTokenAcceso } from "@/lib/pacientes";
+import { crearTurnoEnTx } from "@/lib/turnos";
+import { transaccionAgenda } from "@/lib/transaccion";
+import {
+  comprobarCodigo,
+  ERROR_CODIGO,
+  limitarSolicitud,
+  origenSolicitud,
+} from "@/lib/verificacion";
+import { desencriptarToken } from "@/lib/token";
 import { enviarConfirmacionTurno } from "@/lib/notificaciones";
-
-export async function POST(request: NextRequest) {
-  const body = await request.json();
-  const parsed = reservaPublicaSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
-  }
-  const data = parsed.data;
-
-  // No se puede reservar en el pasado.
-  const hoy = new Date().toISOString().slice(0, 10);
-  if (data.fecha < hoy) {
-    return NextResponse.json({ error: "Fecha inválida" }, { status: 400 });
-  }
-
-  const { paciente, token } = await obtenerOCrearPaciente(data.dni, {
-    nombre: data.nombre,
-    apellido: data.apellido,
-    telefono: data.telefono,
-    email: data.email || null,
-  });
-
-  try {
-    const turno = await crearTurno({
-      pacienteId: paciente.id,
-      medicoId: data.medicoId,
-      fecha: data.fecha,
-      horaInicio: data.horaInicio,
-      motivoConsulta: data.motivoConsulta,
-      canalReserva: "ONLINE",
-      realizadoPor: `paciente:${data.dni}`,
-    });
-
-    const medico = await prisma.medico.findUnique({
-      where: { id: data.medicoId },
-      include: { especialidad: true },
-    });
-    if (medico) {
-      await enviarConfirmacionTurno({
-        email: paciente.email,
-        nombrePaciente: paciente.nombre,
-        fecha: turno.fecha.toISOString(),
-        horaInicio: turno.horaInicio,
-        medicoNombre: `${medico.nombre} ${medico.apellido}`,
-        especialidad: medico.especialidad.nombre,
-        token,
+import { ErrorClinica } from "@/lib/errores";
+import { fechaDB, fechaClinica } from "@/lib/fecha";
+async function POSTHandler(request: NextRequest) {
+  const data = reservaPublicaSchema.parse(await request.json());
+  await limitarSolicitud(`reservar:${origenSolicitud(request)}`, 20);
+  const resultado = await transaccionAgenda(async (tx) => {
+    const codigo = await comprobarCodigo(
+      tx,
+      data.verificacionId,
+      data.codigo,
+      "RESERVA",
+    );
+    if (
+      !codigo ||
+      codigo.dni !== data.dni ||
+      (!codigo.pacienteId && codigo.email !== data.email)
+    )
+      return null;
+    let paciente = codigo.pacienteId
+      ? await tx.paciente.findUniqueOrThrow({
+          where: { id: codigo.pacienteId },
+        })
+      : null;
+    if (!paciente) {
+      const acceso = crearTokenAcceso();
+      paciente = await tx.paciente.create({
+        data: {
+          dni: data.dni,
+          nombre: data.nombre,
+          apellido: data.apellido,
+          telefono: data.telefono,
+          email: codigo.email,
+          tokenAccesoHash: acceso.tokenAccesoHash,
+          tokenAccesoEnc: acceso.tokenAccesoEnc,
+        },
       });
     }
-
-    return NextResponse.json({ turno, linkAcceso: `/mi-turno/${token}` }, { status: 201 });
-  } catch (e) {
-    if (e instanceof HorarioOcupadoError) {
-      return NextResponse.json({ error: "Ese horario ya fue tomado, elegí otro." }, { status: 409 });
-    }
-    throw e;
-  }
+    const pendientes = await tx.turno.count({
+      where: {
+        pacienteId: paciente.id,
+        fecha: { gte: fechaDB(fechaClinica()) },
+        estado: { in: ["PENDIENTE", "CONFIRMADO"] },
+      },
+    });
+    if (pendientes >= 5)
+      throw new ErrorClinica(
+        "Ya tenés cinco turnos próximos. Para reservar otro, comunicate con secretaría.",
+        409,
+      );
+    const turno = await crearTurnoEnTx(tx, {
+      ...data,
+      pacienteId: paciente.id,
+      canalReserva: "ONLINE",
+      realizadoPor: `paciente:${paciente.id}`,
+    });
+    await tx.verificacionPaciente.update({
+      where: { id: codigo.id },
+      data: { consumidoEl: new Date() },
+    });
+    return {
+      turno,
+      paciente,
+      token: desencriptarToken(paciente.tokenAccesoEnc),
+    };
+  });
+  if (!resultado)
+    return NextResponse.json({ error: ERROR_CODIGO }, { status: 400 });
+  const { turno, paciente, token } = resultado;
+  const medico = await prisma.medico.findUniqueOrThrow({
+    where: { id: turno.medicoId },
+    include: { especialidad: true },
+  });
+  const correoEnviado = await enviarConfirmacionTurno({
+    email: paciente.email,
+    nombrePaciente: paciente.nombre,
+    fecha: turno.fecha.toISOString(),
+    horaInicio: turno.horaInicio,
+    medicoNombre: `${medico.nombre} ${medico.apellido}`,
+    especialidad: medico.especialidad.nombre,
+    token,
+  });
+  return NextResponse.json(
+    {
+      turno: { id: turno.id },
+      linkAcceso: `/mi-turno/${token}`,
+      correoEnviado,
+    },
+    { status: 201 },
+  );
 }
+
+export const POST = conErrores(POSTHandler);

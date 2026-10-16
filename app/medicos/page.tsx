@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { authVigente as auth } from "@/lib/sesion";
 import { prisma } from "@/lib/prisma";
 import { parsePermisos, puedeVer } from "@/lib/pantallas";
 
@@ -14,7 +14,10 @@ export default async function MedicosPage() {
     where: { id: session.user.id },
     select: { rol: true, permisos: true },
   });
-  if (!usuario || !puedeVer(parsePermisos(usuario.permisos), usuario.rol, ["medicos"])) {
+  if (
+    !usuario ||
+    !puedeVer(parsePermisos(usuario.permisos), usuario.rol, ["medicos"])
+  ) {
     redirect("/panel");
   }
 
@@ -43,13 +46,18 @@ export default async function MedicosPage() {
             className="flex items-center justify-between px-4 py-3 text-sm hover:bg-neutral-50 dark:hover:bg-neutral-900"
           >
             <span>
-              {m.apellido}, {m.nombre} <span className="text-neutral-500">· {m.especialidad.nombre}</span>
+              {m.apellido}, {m.nombre}{" "}
+              <span className="text-neutral-500">
+                · {m.especialidad.nombre}
+              </span>
             </span>
             {!m.activo && <span className="text-neutral-500">inactivo</span>}
           </Link>
         ))}
         {medicos.length === 0 && (
-          <p className="px-4 py-6 text-center text-sm text-neutral-500">No hay médicos cargados.</p>
+          <p className="px-4 py-6 text-center text-sm text-neutral-500">
+            No hay médicos cargados.
+          </p>
         )}
       </div>
     </div>
