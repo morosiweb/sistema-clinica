@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/api-auth";
 import { actualizarTurnoSchema } from "@/lib/validations/turno";
+import { enviarCancelacionTurno } from "@/lib/notificaciones";
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { session, response } = await requireSession(["turnos", "agenda"]);
@@ -40,7 +41,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
   const data = parsed.data;
 
-  const actual = await prisma.turno.findUnique({ where: { id } });
+  const actual = await prisma.turno.findUnique({
+    where: { id },
+    include: { paciente: true, medico: { include: { especialidad: true } } },
+  });
   if (!actual) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 
   const esMedicoPropio = session.user.rol === "MEDICO";
@@ -95,6 +99,20 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       { error: "Este turno fue modificado por otra persona, recargá la página." },
       { status: 409 }
     );
+  }
+
+  // Aviso al paciente solo cuando la clínica (secretaria/admin/médico) es
+  // quien cancela desde acá; si el paciente cancela su propio turno vía su
+  // link, no tiene sentido avisarle de algo que acaba de hacer él mismo.
+  if (data.estado === "CANCELADO" && actual.estado !== "CANCELADO") {
+    await enviarCancelacionTurno({
+      email: actual.paciente.email,
+      nombrePaciente: actual.paciente.nombre,
+      fecha: actual.fecha.toISOString(),
+      horaInicio: actual.horaInicio,
+      medicoNombre: `${actual.medico.nombre} ${actual.medico.apellido}`,
+      especialidad: actual.medico.especialidad.nombre,
+    });
   }
 
   return NextResponse.json(turno);

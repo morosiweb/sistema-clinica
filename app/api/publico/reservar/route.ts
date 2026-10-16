@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 import { reservaPublicaSchema } from "@/lib/validations/publico";
 import { obtenerOCrearPaciente } from "@/lib/pacientes";
 import { crearTurno, HorarioOcupadoError } from "@/lib/turnos";
+import { enviarConfirmacionTurno } from "@/lib/notificaciones";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -34,6 +36,22 @@ export async function POST(request: NextRequest) {
       canalReserva: "ONLINE",
       realizadoPor: `paciente:${data.dni}`,
     });
+
+    const medico = await prisma.medico.findUnique({
+      where: { id: data.medicoId },
+      include: { especialidad: true },
+    });
+    if (medico) {
+      await enviarConfirmacionTurno({
+        email: paciente.email,
+        nombrePaciente: paciente.nombre,
+        fecha: turno.fecha.toISOString(),
+        horaInicio: turno.horaInicio,
+        medicoNombre: `${medico.nombre} ${medico.apellido}`,
+        especialidad: medico.especialidad.nombre,
+        token,
+      });
+    }
 
     return NextResponse.json({ turno, linkAcceso: `/mi-turno/${token}` }, { status: 201 });
   } catch (e) {

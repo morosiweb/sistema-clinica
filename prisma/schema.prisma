@@ -151,6 +151,8 @@ model Turno {
   notasMedico     String?
   // Control de concurrencia optimista: se verifica antes de sobreescribir.
   version         Int              @default(0)
+  // Evita mandar el recordatorio de 24-48hs mas de una vez para el mismo turno.
+  recordatorioEnviado Boolean      @default(false)
   historial       HistorialTurno[]
   pagos           Pago[]
   createdAt       DateTime         @default(now())
