@@ -5,17 +5,27 @@ export type Pantalla = {
   label: string;
   grupo: string;
   href: string;
+  // false = la pantalla ya existe en el catálogo de permisos (para que el
+  // admin pueda habilitarla de antemano) pero su página todavía no está
+  // construida, así que no se muestra en la navegación para evitar un 404.
+  implementada?: boolean;
 };
 
 export const PANTALLAS: readonly Pantalla[] = [
-  { key: "pacientes", label: "Pacientes", grupo: "Operación", href: "/pacientes" },
-  { key: "turnos", label: "Turnos", grupo: "Operación", href: "/turnos" },
-  { key: "agenda", label: "Mi agenda", grupo: "Operación", href: "/agenda" },
-  { key: "medicos", label: "Médicos", grupo: "Administración", href: "/medicos" },
-  { key: "especialidades", label: "Especialidades", grupo: "Administración", href: "/especialidades" },
+  { key: "pacientes", label: "Pacientes", grupo: "Operación", href: "/pacientes", implementada: true },
+  { key: "turnos", label: "Turnos", grupo: "Operación", href: "/turnos", implementada: true },
+  { key: "agenda", label: "Mi agenda", grupo: "Operación", href: "/agenda", implementada: true },
+  { key: "medicos", label: "Médicos", grupo: "Administración", href: "/medicos", implementada: true },
+  {
+    key: "especialidades",
+    label: "Especialidades",
+    grupo: "Administración",
+    href: "/especialidades",
+    implementada: true,
+  },
   { key: "bloqueos", label: "Licencias", grupo: "Administración", href: "/bloqueos" },
   { key: "reportes", label: "Reportes", grupo: "Administración", href: "/reportes" },
-  { key: "usuarios", label: "Usuarios", grupo: "Administración", href: "/admin/usuarios" },
+  { key: "usuarios", label: "Usuarios", grupo: "Administración", href: "/admin/usuarios", implementada: true },
 ] as const;
 
 // Usuario.permisos es un String? con JSON de claves de PANTALLAS.
@@ -51,7 +61,7 @@ export function pantallasPermitidas(
   permisos: string[] | null,
   rol: RolInterno
 ): Pantalla[] {
-  return PANTALLAS.filter((p) => puedeVer(permisos, rol, [p.key]));
+  return PANTALLAS.filter((p) => p.implementada && puedeVer(permisos, rol, [p.key]));
 }
 
 export function hrefDe(clave: string): string | undefined {
