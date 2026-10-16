@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashToken } from "@/lib/token";
-
-const VENTANA_CANCELACION_HORAS = 4;
+import { horasHastaElTurno, VENTANA_MINIMA_HORAS } from "@/lib/turnos";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -25,14 +24,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: "Ese turno ya está cancelado" }, { status: 409 });
   }
 
-  const [h, m] = turno.horaInicio.split(":").map(Number);
-  const inicioTurno = new Date(turno.fecha);
-  inicioTurno.setUTCHours(h, m, 0, 0);
-  const horasRestantes = (inicioTurno.getTime() - Date.now()) / (1000 * 60 * 60);
-  if (horasRestantes < VENTANA_CANCELACION_HORAS) {
+  const horasRestantes = horasHastaElTurno(turno.fecha, turno.horaInicio);
+  if (horasRestantes < VENTANA_MINIMA_HORAS) {
     return NextResponse.json(
       {
-        error: `Ya no se puede cancelar online (faltan menos de ${VENTANA_CANCELACION_HORAS} horas). Comunicate con la clínica.`,
+        error: `Ya no se puede cancelar online (faltan menos de ${VENTANA_MINIMA_HORAS} horas). Comunicate con la clínica.`,
       },
       { status: 400 }
     );
