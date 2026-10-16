@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { HistoriaClinica, type EntradaHistoria } from "@/components/historia-clinica";
 
 type Historial = { id: string; accion: string; realizadoPor: string; detalle: string | null; fecha: string };
 
@@ -22,7 +23,19 @@ export type TurnoDetalleData = {
 
 const ESTADOS = ["PENDIENTE", "CONFIRMADO", "CANCELADO", "AUSENTE", "ATENDIDO"] as const;
 
-export function TurnoDetalle({ turno, esMedico }: { turno: TurnoDetalleData; esMedico: boolean }) {
+export function TurnoDetalle({
+  turno,
+  esMedico,
+  puedeVerNotasMedico,
+  historiaPaciente,
+}: {
+  turno: TurnoDetalleData;
+  esMedico: boolean;
+  // ADMIN o el propio médico tratante. Secretaria no accede al contenido
+  // clínico, solo sabe que existe (ver lib/historia.ts).
+  puedeVerNotasMedico: boolean;
+  historiaPaciente: EntradaHistoria[];
+}) {
   const router = useRouter();
   const [estado, setEstado] = useState(turno.estado);
   const [notasSecretaria, setNotasSecretaria] = useState(turno.notasSecretaria ?? "");
@@ -90,15 +103,25 @@ export function TurnoDetalle({ turno, esMedico }: { turno: TurnoDetalleData; esM
         </div>
       )}
 
-      <div className="space-y-1">
-        <label className="text-sm font-medium">Notas clínicas (médico)</label>
-        <textarea
-          className={inputClass}
-          rows={3}
-          value={notasMedico}
-          onChange={(e) => setNotasMedico(e.target.value)}
-        />
-      </div>
+      {esMedico && (
+        <div className="space-y-1">
+          <label className="text-sm font-medium">Notas clínicas (médico)</label>
+          <textarea
+            className={inputClass}
+            rows={3}
+            value={notasMedico}
+            onChange={(e) => setNotasMedico(e.target.value)}
+          />
+        </div>
+      )}
+      {!esMedico && puedeVerNotasMedico && turno.notasMedico && (
+        <div className="space-y-1">
+          <label className="text-sm font-medium">Notas clínicas (médico)</label>
+          <p className="rounded-md bg-neutral-50 p-3 text-sm text-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+            {turno.notasMedico}
+          </p>
+        </div>
+      )}
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
@@ -121,6 +144,15 @@ export function TurnoDetalle({ turno, esMedico }: { turno: TurnoDetalleData; esM
           ))}
         </div>
       </div>
+
+      {historiaPaciente.length > 0 && (
+        <div>
+          <h2 className="mb-2 text-sm font-semibold">
+            {esMedico ? "Otras consultas con este paciente" : "Historia clínica del paciente"}
+          </h2>
+          <HistoriaClinica entradas={historiaPaciente} />
+        </div>
+      )}
     </div>
   );
 }

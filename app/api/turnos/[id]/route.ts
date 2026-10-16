@@ -22,7 +22,10 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: "Sin acceso" }, { status: 403 });
   }
 
-  return NextResponse.json(turno);
+  // Las notas clinicas son del medico tratante y de ADMIN; secretaria no
+  // accede al contenido (ver lib/historia.ts para el mismo criterio).
+  const puedeVerNotasMedico = session.user.rol === "ADMIN" || turno.medicoId === session.user.medicoId;
+  return NextResponse.json({ ...turno, notasMedico: puedeVerNotasMedico ? turno.notasMedico : null });
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -60,9 +63,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       data: {
         estado: data.estado,
         // Un médico solo puede dejar sus propias notas clínicas; las notas
-        // internas de secretaria no las puede tocar.
+        // internas de secretaria no las puede tocar. Y viceversa: secretaria
+        // nunca escribe (ni borra sin querer) el campo clínico del médico.
         ...(esMedicoPropio ? {} : { notasSecretaria: data.notasSecretaria || null }),
-        notasMedico: data.notasMedico || null,
+        ...(esMedicoPropio ? { notasMedico: data.notasMedico || null } : {}),
         version: { increment: 1 },
       },
     });
