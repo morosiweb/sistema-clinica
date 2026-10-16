@@ -1,8 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../app/generated/prisma"
@@ -12,49 +10,195 @@ datasource db {
   provider = "postgresql"
 }
 
+// ===================== PACIENTE (sin login) =====================
+// Se identifica por DNI. Accede a sus turnos mediante un link personal
+// permanente con un token aleatorio; solo se guarda el hash del token.
+
 model Paciente {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
+  dni             String    @unique
   nombre          String
   apellido        String
-  dni             String?  @unique
   telefono        String?
   email           String?
   fechaNacimiento DateTime?
-  notas           String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  obraSocial      String?
+  tokenAccesoHash String    @unique
+  tokenGeneradoEl DateTime  @default(now())
+  ausenciasSinAviso Int     @default(0)
   turnos          Turno[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
-model Profesional {
-  id           String   @id @default(cuid())
-  nombre       String
-  apellido     String
-  especialidad String?
-  createdAt    DateTime @default(now())
-  turnos       Turno[]
+// ===================== MEDICOS Y AGENDA =====================
+
+model Especialidad {
+  id          String   @id @default(cuid())
+  nombre      String   @unique
+  descripcion String?
+  medicos     Medico[]
+  createdAt   DateTime @default(now())
 }
+
+model Medico {
+  id                   String          @id @default(cuid())
+  nombre               String
+  apellido             String
+  matricula            String?         @unique
+  especialidadId       String
+  especialidad         Especialidad    @relation(fields: [especialidadId], references: [id])
+  telefono             String?
+  email                String?
+  duracionTurnoMinutos Int             @default(30)
+  activo               Boolean         @default(true)
+  usuarioInterno       UsuarioInterno?
+  horarios             HorarioMedico[]
+  bloqueos             BloqueoMedico[]
+  turnos               Turno[]
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  @@index([especialidadId])
+}
+
+enum DiaSemana {
+  LUNES
+  MARTES
+  MIERCOLES
+  JUEVES
+  VIERNES
+  SABADO
+  DOMINGO
+}
+
+// Disponibilidad recurrente semanal. Los horarios disponibles para reservar
+// se calculan en el momento (horario base - turnos ya tomados - bloqueos).
+model HorarioMedico {
+  id            String    @id @default(cuid())
+  medicoId      String
+  medico        Medico    @relation(fields: [medicoId], references: [id])
+  diaSemana     DiaSemana
+  horaInicio    String
+  horaFin       String
+  duracionTurno Int?
+  vigenteDesde  DateTime?
+  vigenteHasta  DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([medicoId])
+}
+
+enum EstadoBloqueo {
+  PENDIENTE
+  APROBADO
+  RECHAZADO
+}
+
+// Licencias / ausencias puntuales del medico. Si el medico la solicita,
+// queda PENDIENTE hasta que secretaria/admin la aprueba.
+model BloqueoMedico {
+  id            String          @id @default(cuid())
+  medicoId      String
+  medico        Medico          @relation(fields: [medicoId], references: [id])
+  fecha         DateTime
+  horaInicio    String?
+  horaFin       String?
+  motivo        String?
+  estado        EstadoBloqueo   @default(PENDIENTE)
+  aprobadoPorId String?
+  aprobadoPor   UsuarioInterno? @relation(fields: [aprobadoPorId], references: [id])
+  createdAt     DateTime        @default(now())
+
+  @@index([medicoId])
+  @@index([fecha])
+}
+
+// ===================== TURNOS =====================
 
 enum EstadoTurno {
   PENDIENTE
   CONFIRMADO
   CANCELADO
-  COMPLETADO
+  AUSENTE
+  ATENDIDO
+}
+
+enum CanalReserva {
+  ONLINE
+  TELEFONO
+  PRESENCIAL
 }
 
 model Turno {
-  id            String      @id @default(cuid())
-  fecha         DateTime
-  motivo        String?
-  estado        EstadoTurno @default(PENDIENTE)
-  notas         String?
-  paciente      Paciente    @relation(fields: [pacienteId], references: [id])
-  pacienteId    String
-  profesional   Profesional? @relation(fields: [profesionalId], references: [id])
-  profesionalId String?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  id              String           @id @default(cuid())
+  pacienteId      String
+  paciente        Paciente         @relation(fields: [pacienteId], references: [id])
+  medicoId        String
+  medico          Medico           @relation(fields: [medicoId], references: [id])
+  fecha           DateTime
+  horaInicio      String
+  horaFin         String
+  estado          EstadoTurno      @default(PENDIENTE)
+  motivoConsulta  String?
+  canalReserva    CanalReserva     @default(ONLINE)
+  notasSecretaria String?
+  notasMedico     String?
+  // Control de concurrencia optimista: se verifica antes de sobreescribir.
+  version         Int              @default(0)
+  historial       HistorialTurno[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
-  @@index([fecha])
+  @@index([medicoId, fecha])
   @@index([pacienteId])
+}
+
+enum AccionHistorialTurno {
+  CREADO
+  MODIFICADO
+  CANCELADO
+}
+
+// Auditoria: quien hizo que y cuando sobre cada turno.
+model HistorialTurno {
+  id           String               @id @default(cuid())
+  turnoId      String
+  turno        Turno                @relation(fields: [turnoId], references: [id])
+  accion       AccionHistorialTurno
+  realizadoPor String
+  detalle      String?
+  fecha        DateTime             @default(now())
+
+  @@index([turnoId])
+}
+
+// ===================== USUARIOS INTERNOS =====================
+// Secretaria / Medico / Admin. El paciente nunca tiene usuario propio.
+
+enum RolInterno {
+  ADMIN
+  SECRETARIA
+  MEDICO
+}
+
+model UsuarioInterno {
+  id       String     @id @default(cuid())
+  nombre   String
+  email    String     @unique
+  password String
+  rol      RolInterno @default(SECRETARIA)
+  // Si el usuario es un medico, queda vinculado a su ficha de Medico.
+  medicoId String?    @unique
+  medico   Medico?    @relation(fields: [medicoId], references: [id])
+  activo   Boolean    @default(true)
+  // Fuerza bruta de login: igual criterio que en ml-afiliados.
+  intentosFallidos  Int       @default(0)
+  bloqueadoHasta    DateTime?
+  // Pantallas a las que puede entrar (lista JSON de claves). null = todas
+  // (admin). No aplica a MEDICO, que siempre ve solo su propia agenda.
+  permisos          String?
+  bloqueosAprobados BloqueoMedico[]
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 }
