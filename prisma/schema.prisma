@@ -11,3 +11,50 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+model Paciente {
+  id              String   @id @default(cuid())
+  nombre          String
+  apellido        String
+  dni             String?  @unique
+  telefono        String?
+  email           String?
+  fechaNacimiento DateTime?
+  notas           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  turnos          Turno[]
+}
+
+model Profesional {
+  id           String   @id @default(cuid())
+  nombre       String
+  apellido     String
+  especialidad String?
+  createdAt    DateTime @default(now())
+  turnos       Turno[]
+}
+
+enum EstadoTurno {
+  PENDIENTE
+  CONFIRMADO
+  CANCELADO
+  COMPLETADO
+}
+
+model Turno {
+  id            String      @id @default(cuid())
+  fecha         DateTime
+  motivo        String?
+  estado        EstadoTurno @default(PENDIENTE)
+  notas         String?
+  paciente      Paciente    @relation(fields: [pacienteId], references: [id])
+  pacienteId    String
+  profesional   Profesional? @relation(fields: [profesionalId], references: [id])
+  profesionalId String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([fecha])
+  @@index([pacienteId])
+}
