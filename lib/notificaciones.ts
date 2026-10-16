@@ -1,9 +1,23 @@
 import { Resend } from "resend";
+import nodemailer from "nodemailer";
+import { createHash } from "node:crypto";
+import { emailSchema } from "@/lib/validations/comun";
 
-function resend() {
-  const key = process.env.RESEND_API_KEY;
-  if (!key) return null;
-  return new Resend(key);
+function proveedorCorreo() {
+  return process.env.EMAIL_PROVIDER?.trim().toLowerCase() || "resend";
+}
+
+function credencialesGmail() {
+  const email = emailSchema.safeParse(process.env.GMAIL_USER);
+  const password = process.env.GMAIL_APP_PASSWORD?.replace(/\s/g, "");
+  return email.success && password
+    ? { user: email.data, pass: password }
+    : null;
+}
+
+export function correoConfigurado(): boolean {
+  if (proveedorCorreo() === "gmail") return !!credencialesGmail();
+  return proveedorCorreo() === "resend" && !!process.env.RESEND_API_KEY?.trim();
 }
 
 function urlCompleta(path: string): string {
@@ -35,19 +49,53 @@ export async function enviar(
   texto: string,
   clave?: string,
 ): Promise<boolean> {
-  const client = resend();
-  if (!client || !to) return false;
+  if (!to || !correoConfigurado()) return false;
+  const proveedor = proveedorCorreo();
   try {
+    if (proveedor === "gmail") {
+      const auth = credencialesGmail()!;
+      const transport = nodemailer.createTransport({
+        host: "smtp.gmail.com",
+        port: 465,
+        secure: true,
+        auth,
+        connectionTimeout: 5000,
+        greetingTimeout: 5000,
+        socketTimeout: 8000,
+        dnsTimeout: 5000,
+        disableFileAccess: true,
+        disableUrlAccess: true,
+        logger: false,
+        debug: false,
+      });
+      // SMTP no tiene la idempotencia de la API de Resend. Se conserva el
+      // bloqueo/estado de cada recordatorio y un Message-ID estable por clave.
+      const messageId = clave
+        ? `<${createHash("sha256").update(clave).digest("hex")}@${auth.user.split("@")[1]}>`
+        : undefined;
+      const resultado = await transport.sendMail({
+        from: { name: "Clínica", address: auth.user },
+        to,
+        subject: asunto,
+        html,
+        text: texto,
+        messageId,
+      });
+      return resultado.accepted.length > 0 && resultado.rejected.length === 0;
+    }
+    const client = new Resend(process.env.RESEND_API_KEY);
     const from =
       process.env.EMAIL_FROM ?? "Sistema Clínica <onboarding@resend.dev>";
     const { error } = await client.emails.send(
       { from, to, subject: asunto, html, text: texto },
       clave ? { idempotencyKey: clave } : undefined,
     );
-    if (error) console.error("[notificaciones] El proveedor rechazó el envío");
+    if (error) console.error("[notificaciones] Resend rechazó el envío");
     return !error;
   } catch {
-    console.error("[notificaciones] No se pudo conectar con el proveedor");
+    // No registrar mensajes del proveedor: pueden contener direcciones,
+    // contenido o credenciales. El error público tampoco expone esos datos.
+    console.error(`[notificaciones] No se pudo enviar mediante ${proveedor}`);
     return false;
   }
 }

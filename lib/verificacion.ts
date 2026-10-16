@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { generarToken, hashToken } from "@/lib/token";
-import { enviarCodigo } from "@/lib/notificaciones";
+import { correoConfigurado, enviarCodigo } from "@/lib/notificaciones";
 import { ErrorClinica } from "@/lib/errores";
 import type { Transaccion } from "@/lib/transaccion";
 
@@ -53,7 +53,7 @@ export async function solicitarCodigo(
   proposito: "RESERVA" | "ACCESO",
   origen: string,
 ) {
-  if (!process.env.RESEND_API_KEY)
+  if (!correoConfigurado())
     throw new ErrorClinica(
       "La gestión online no está disponible. Comunicate con la clínica.",
       503,

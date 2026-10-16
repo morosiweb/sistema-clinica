@@ -1,0 +1,196 @@
+import assert from "node:assert/strict";
+import { after, before, beforeEach, mock, test } from "node:test";
+import nodemailer from "nodemailer";
+import type SMTPTransport from "nodemailer/lib/smtp-transport";
+import { SMTPServer } from "smtp-server";
+import { simpleParser, type ParsedMail } from "mailparser";
+import {
+  correoConfigurado,
+  enviarCodigo,
+  enviarConfirmacionTurno,
+  enviarRecordatorioTurno,
+  enviarCancelacionTurno,
+  enviarLinkPaciente,
+} from "../lib/notificaciones";
+
+const variables = [
+  "EMAIL_PROVIDER",
+  "GMAIL_USER",
+  "GMAIL_APP_PASSWORD",
+  "RESEND_API_KEY",
+  "EMAIL_FROM",
+  "NEXTAUTH_URL",
+] as const;
+const anteriores = new Map(variables.map((key) => [key, process.env[key]]));
+const recibidos: ParsedMail[] = [];
+const clavePrueba = "abcdefghijklmnop";
+let rechazar = false;
+let puerto = 0;
+const crearTransporte = nodemailer.createTransport.bind(nodemailer);
+const servidor = new SMTPServer({
+  secure: false,
+  disabledCommands: ["STARTTLS"],
+  allowInsecureAuth: true,
+  logger: false,
+  onAuth(auth, _session, callback) {
+    if (auth.username !== "emisor@gmail.com" || auth.password !== clavePrueba)
+      return callback(new Error("Credenciales de prueba inválidas"));
+    callback(null, { user: "emisor" });
+  },
+  onData(stream, _session, callback) {
+    simpleParser(stream)
+      .then((mail) => {
+        if (rechazar)
+          return callback(
+            Object.assign(new Error("Fallo SMTP simulado"), {
+              responseCode: 451,
+            }),
+          );
+        recibidos.push(mail);
+        callback();
+      })
+      .catch(callback);
+  },
+});
+
+before(async () => {
+  await new Promise<void>((resolve) =>
+    servidor.listen(0, "127.0.0.1", resolve),
+  );
+  const address = servidor.server.address();
+  assert(address && typeof address !== "string");
+  puerto = address.port;
+  mock.method(
+    nodemailer,
+    "createTransport",
+    (options: SMTPTransport.Options) => {
+      // El código real siempre conecta a Gmail con TLS y validación de certificados.
+      // Solo este proceso de pruebas sustituye la conexión por un receptor local.
+      assert.equal(options.host, "smtp.gmail.com");
+      assert.equal(options.port, 465);
+      assert.equal(options.secure, true);
+      assert.notEqual(options.tls?.rejectUnauthorized, false);
+      assert.equal(options.logger, false);
+      assert.equal(options.debug, false);
+      return crearTransporte({
+        host: "127.0.0.1",
+        port: puerto,
+        secure: false,
+        ignoreTLS: true,
+        auth: options.auth,
+      });
+    },
+  );
+});
+
+beforeEach(() => {
+  process.env.EMAIL_PROVIDER = "gmail";
+  process.env.GMAIL_USER = "emisor@gmail.com";
+  process.env.GMAIL_APP_PASSWORD = "abcd efgh ijkl mnop";
+  process.env.EMAIL_FROM = "Anterior <onboarding@resend.dev>";
+  process.env.NEXTAUTH_URL = "https://clinica.example.test";
+  delete process.env.RESEND_API_KEY;
+  recibidos.length = 0;
+  rechazar = false;
+});
+
+after(async () => {
+  mock.restoreAll();
+  for (const key of variables) {
+    const previo = anteriores.get(key);
+    if (previo === undefined) delete process.env[key];
+    else process.env[key] = previo;
+  }
+  await new Promise<void>((resolve) => servidor.close(resolve));
+});
+
+test("Gmail funciona sin Resend y acepta la clave de aplicación con espacios", async () => {
+  assert.equal(correoConfigurado(), true);
+  assert.equal(await enviarCodigo("paciente@example.test", "123456"), true);
+  assert.equal(recibidos.length, 1);
+  assert.equal(recibidos[0].from?.value[0].address, "emisor@gmail.com");
+  assert.equal(recibidos[0].subject, "Tu código para gestionar turnos");
+  assert.match(recibidos[0].text || "", /123456/);
+  assert.equal(
+    recibidos[0].to && !Array.isArray(recibidos[0].to)
+      ? recibidos[0].to.value[0].address
+      : null,
+    "paciente@example.test",
+  );
+});
+
+test("la configuración incompleta o desconocida no cae a otro proveedor", async () => {
+  process.env.RESEND_API_KEY = "re_test_only";
+  delete process.env.GMAIL_APP_PASSWORD;
+  assert.equal(correoConfigurado(), false);
+  assert.equal(await enviarCodigo("paciente@example.test", "123456"), false);
+  process.env.GMAIL_APP_PASSWORD = clavePrueba;
+  process.env.GMAIL_USER = "correo-invalido";
+  assert.equal(correoConfigurado(), false);
+  process.env.EMAIL_PROVIDER = "desconocido";
+  assert.equal(correoConfigurado(), false);
+  delete process.env.EMAIL_PROVIDER;
+  assert.equal(correoConfigurado(), true);
+  assert.equal(recibidos.length, 0);
+});
+
+test("un error de autenticación SMTP devuelve fallo sin exponer credenciales", async () => {
+  process.env.GMAIL_APP_PASSWORD = "password-incorrecto";
+  const log = mock.method(console, "error", () => {});
+  try {
+    assert.equal(await enviarCodigo("paciente@example.test", "654321"), false);
+    assert.equal(recibidos.length, 0);
+    const logs = JSON.stringify(log.mock.calls.map((call) => call.arguments));
+    assert(!logs.includes("password-incorrecto"));
+    assert(!logs.includes("654321"));
+    assert(!logs.includes("paciente@example.test"));
+  } finally {
+    log.mock.restore();
+  }
+});
+
+test("las confirmaciones, recordatorios, cancelaciones y enlaces usan Gmail", async () => {
+  const datos = {
+    email: "paciente@example.test",
+    nombrePaciente: "Paciente <Prueba>",
+    fecha: "2026-10-20T00:00:00Z",
+    horaInicio: "10:15",
+    medicoNombre: "Profesional Prueba",
+    especialidad: "Clínica médica",
+    token: "token-solo-de-prueba",
+    claveEnvio: "recordatorio/turno-prueba",
+  };
+  assert.equal(await enviarConfirmacionTurno(datos), true);
+  assert.equal(await enviarRecordatorioTurno(datos), true);
+  assert.equal(await enviarCancelacionTurno(datos), true);
+  assert.equal(
+    await enviarLinkPaciente(
+      { email: datos.email, nombre: datos.nombrePaciente },
+      "/mi-turno/token-solo-de-prueba",
+    ),
+    true,
+  );
+  assert.equal(recibidos.length, 4);
+  assert(
+    recibidos.every(
+      (mail) => mail.from?.value[0].address === "emisor@gmail.com",
+    ),
+  );
+  assert.match(
+    recibidos[0].text || "",
+    /https:\/\/clinica\.example\.test\/mi-turno\/token-solo-de-prueba/,
+  );
+  assert.match(recibidos[0].html || "", /Paciente &lt;Prueba&gt;/);
+  assert(!recibidos[1].messageId?.includes("turno-prueba"));
+});
+
+test("un rechazo del servidor SMTP no se informa como envío exitoso", async () => {
+  rechazar = true;
+  const log = mock.method(console, "error", () => {});
+  try {
+    assert.equal(await enviarCodigo("paciente@example.test", "123456"), false);
+    assert.equal(recibidos.length, 0);
+  } finally {
+    log.mock.restore();
+  }
+});

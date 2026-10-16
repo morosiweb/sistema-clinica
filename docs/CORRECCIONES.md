@@ -31,12 +31,16 @@ Los límites deliberados son cinco turnos próximos online, cuatro horas mínima
 
 - Compilación de producción y TypeScript: correctos.
 - ESLint: sin errores ni advertencias.
-- 9 pruebas unitarias y 30 de integración: correctas, incluida reserva completa, recuperación frente a fallo de red y navegación por rol en Chromium. El rediseño agrega revisión de pantallas de escritorio y celulares.
+- 14 pruebas unitarias/SMTP y 30 de integración: correctas, incluida reserva completa, recuperación frente a fallo de red y navegación por rol en Chromium. El rediseño agrega revisión de pantallas de escritorio y celulares.
 - Migraciones probadas desde cero y desde datos anteriores en PostgreSQL local temporal; concurrencia real y aislamiento de roles públicos verificados.
 - Las dos migraciones quedaron aplicadas en la base configurada, después de comprobar que coincidía con la baseline, no tenía pacientes/turnos y no presentaba conflictos. Los tres usuarios internos se conservaron. No se cargaron datos de pruebas en esa base ni se enviaron correos reales.
 - Se configuró `DIRECT_URL` local para migraciones por conexión de sesión; la aplicación mantiene su conexión con pool.
 - `npm audit --omit=dev`: sin vulnerabilidades reportadas. La auditoría completa mantiene cinco alertas de la cadena de herramientas de desarrollo de ESLint/`braces`; no se aplicó el downgrade mayor de Next/ESLint sugerido automáticamente. No forman parte de las dependencias de ejecución.
 
-## Pendiente externo: dominio de correo
+## Proveedores de correo y configuración pendiente
 
-El dominio de la clínica todavía no fue entregado. La cuenta de Resend tiene el remitente de pruebas `@resend.dev` y no tiene dominios verificados. El flujo quedó probado con un receptor local de correos. Para habilitar códigos a pacientes reales, hay que verificar el dominio de la clínica en Resend, publicar sus registros DNS y configurar `EMAIL_FROM`. No hace falta modificar el flujo ni crear cuentas de pacientes. Mientras tanto, las pruebas con el proveedor se limitan a los destinatarios autorizados por su modo de pruebas.
+El dominio de la clínica todavía no fue entregado. Resend mantiene el remitente de pruebas `@resend.dev` y no tiene dominios verificados. Para usar Resend con pacientes reales se necesita verificar un dominio y configurar `EMAIL_FROM`.
+
+También se incorporó Gmail personal como alternativa mediante `EMAIL_PROVIDER=gmail`, `GMAIL_USER` y `GMAIL_APP_PASSWORD`. La contraseña de aplicación se carga como secreto en Vercel y requiere un nuevo despliegue para entrar en vigor. No se guarda en el repositorio. El remitente coincide con la cuenta autenticada y no hereda el remitente de pruebas de Resend.
+
+El canal Gmail fue probado con un receptor SMTP local: envío de códigos, confirmaciones, recordatorios, cancelaciones y enlaces, credenciales inválidas, rechazos y configuración incompleta. La verificación de entrega real a través de Google depende de cargar las tres variables y completar una prueba desde la web. Ver las instrucciones en el README.

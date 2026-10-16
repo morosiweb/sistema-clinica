@@ -20,10 +20,28 @@ Completar el entorno:
 | `NEXTAUTH_URL`                 | URL real del sistema; localhost para desarrollo, HTTPS al publicar.                                                                                                                                                                                                                |
 | `NEXTAUTH_SECRET`              | Secreto aleatorio de sesión y HMAC de códigos.                                                                                                                                                                                                                                     |
 | `TOKEN_ENCRYPTION_KEY`         | 32 bytes en base64 para cifrar enlaces. Conservar y respaldar: cambiarlo impide recuperar enlaces existentes.                                                                                                                                                                      |
-| `RESEND_API_KEY`               | Credencial de Resend. Sin configuración, la reserva online rechaza la operación.                                                                                                                                                                                                   |
-| `EMAIL_FROM`                   | Remitente de un dominio verificado en Resend.                                                                                                                                                                                                                                      |
+| `RESEND_API_KEY`               | Credencial de Resend, utilizada cuando `EMAIL_PROVIDER=resend`.                                                                                                                                                                                                                    |
+| `EMAIL_FROM`                   | Remitente de un dominio verificado en Resend; Gmail usa siempre la cuenta autenticada.                                                                                                                                                                                             |
 | `CRON_SECRET`                  | Secreto Bearer del programador de recordatorios.                                                                                                                                                                                                                                   |
 | `NEXT_PUBLIC_CLINIC_TIME_ZONE` | Zona IANA, predeterminado `America/Argentina/Buenos_Aires`. Cambiarla requiere recompilar.                                                                                                                                                                                         |
+
+### Enviar desde Gmail personal
+
+En Vercel → proyecto → Settings → Environment Variables, crear para **Production**:
+
+| Variable             | Valor                                                                                                           |
+| -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `EMAIL_PROVIDER`     | `gmail`                                                                                                         |
+| `GMAIL_USER`         | La cuenta Gmail que generó la contraseña de aplicación                                                          |
+| `GMAIL_APP_PASSWORD` | La contraseña de aplicación de 16 caracteres. Guardarla como secreto; no usar la contraseña habitual de Google. |
+
+Guardar las variables y crear un nuevo despliegue: los cambios de entorno no actualizan despliegues anteriores. No anteponer `NEXT_PUBLIC_`, no guardar la clave en Git ni compartirla por chat. También pueden cargarse en Preview si se desea probar ese entorno.
+
+La cuenta necesita verificación en dos pasos y permitir contraseñas de aplicación. Los espacios que Google usa para agrupar la clave se eliminan al leerla. Gmail conecta a `smtp.gmail.com:465` con TLS y usa esa misma cuenta como remitente; una configuración anterior de `EMAIL_FROM` no altera este remitente. No necesita dominio propio para este modo.
+
+Los códigos, confirmaciones, recordatorios, cancelaciones y enlaces comparten el proveedor seleccionado. Una configuración incompleta o desconocida bloquea el envío, sin cambiar automáticamente a otro proveedor. Si no se define `EMAIL_PROVIDER`, se conserva Resend. Para volver a Resend, configurar `EMAIL_PROVIDER=resend`, su API key y un remitente de dominio verificado.
+
+El proyecto usa Nodemailer 10.1.2 o posterior mediante `overrides`: el peer opcional de Auth.js apunta a versiones anteriores con avisos de seguridad. La autenticación del personal continúa usando credenciales y se valida en las pruebas de integración.
 
 Generar **cada secreto por separado**:
 
@@ -82,7 +100,7 @@ Las tablas internas se consultan únicamente desde el backend. La migración hab
 
 ## Recordatorios
 
-`/api/cron/recordatorios` exige `Authorization: Bearer <CRON_SECRET>`. `vercel.json` lo programa diariamente a las 12:00 UTC. Procesa las próximas 48 horas, también reservas recientes de menos de 24 h. Solo marca envíos aceptados, conserva fallos para reintentar y continúa con los demás. Incluye enlace de gestión, reinicia al reprogramar y usa idempotencia y bloqueo por turno contra ejecuciones simultáneas. La cadencia diaria limita la rapidez de los reintentos; una frecuencia mayor requiere un programador compatible.
+`/api/cron/recordatorios` exige `Authorization: Bearer <CRON_SECRET>`. `vercel.json` lo programa diariamente a las 12:00 UTC. Procesa las próximas 48 horas, también reservas recientes de menos de 24 h. Solo marca envíos aceptados, conserva fallos para reintentar y continúa con los demás. Incluye enlace de gestión, reinicia al reprogramar y usa bloqueo por turno contra ejecuciones simultáneas e idempotencia de proveedor con Resend. Gmail utiliza un Message-ID estable por clave; SMTP no garantiza deduplicación si el proceso se interrumpe después de que el servidor acepta el mensaje y antes de guardar el resultado. La cadencia diaria limita la rapidez de los reintentos; una frecuencia mayor requiere un programador compatible.
 
 ## Verificación
 
@@ -94,6 +112,6 @@ npx playwright install chromium
 npm run test:integration
 ```
 
-Las pruebas de integración inician PostgreSQL temporal **local** y un receptor local de correos. Reemplazan las variables del proceso de prueba: no usan la base del `.env` ni envían correos reales. Incluyen migraciones desde cero y datos previos, códigos, roles, concurrencia real, ficha, licencias, cobros, fallos de correo y reserva completa en Chromium. Al terminar detienen servicios y eliminan únicamente su directorio temporal.
+Las pruebas de integración inician PostgreSQL temporal **local** y un receptor local de correos. Reemplazan las variables del proceso de prueba: no usan la base del `.env` ni envían correos reales. Incluyen migraciones desde cero y datos previos, códigos, roles, concurrencia real, ficha, licencias, cobros, fallos de correo y reserva completa en Chromium. `npm test` también inicia un receptor SMTP local para comprobar el canal Gmail, autenticación, rechazos, remitente y contenido de los distintos mensajes, sin conectarse a Google. Al terminar detienen servicios y eliminan únicamente su directorio temporal.
 
 Se usa [embedded-postgres](https://github.com/leinelissen/embedded-postgres) como dependencia exclusiva de desarrollo para no exigir Docker. Ejecutar las pruebas con un usuario normal; no crean usuarios del sistema. Ver también [el registro de correcciones](docs/CORRECCIONES.md).

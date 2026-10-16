@@ -107,6 +107,9 @@ async function main() {
     process.env.TOKEN_ENCRYPTION_KEY = randomBytes(32).toString("base64");
     process.env.CRON_SECRET = "cron-test-only";
     process.env.RESEND_API_KEY = "re_test_only";
+    process.env.EMAIL_PROVIDER = "resend";
+    delete process.env.GMAIL_USER;
+    delete process.env.GMAIL_APP_PASSWORD;
     process.env.RESEND_BASE_URL = `http://127.0.0.1:${mailPort}`;
     process.env.EMAIL_FROM = "Clinica <test@example.test>";
     process.env.NEXT_PUBLIC_CLINIC_TIME_ZONE = "America/Argentina/Buenos_Aires";

@@ -11,7 +11,7 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "test": "tsx --test tests/unit.test.ts",
+    "test": "tsx --test tests/unit.test.ts tests/correo.test.ts",
     "test:integration": "npm run build && tsx tests/integration.ts",
     "format": "prettier --write app components lib tests scripts next.config.ts README.md",
     "db:migrate": "prisma migrate deploy",
@@ -31,6 +31,7 @@
     "lucide-react": "^1.58.0",
     "next": "16.4.2",
     "next-auth": "^5.0.0-beta.32",
+    "nodemailer": "^10.1.2",
     "prisma": "^7.10.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
@@ -43,16 +44,24 @@
     "@playwright/test": "^1.64.1",
     "@tailwindcss/turbopack": "^4",
     "@types/bcryptjs": "^2.4.6",
+    "@types/mailparser": "^3.9.0",
     "@types/node": "^20",
+    "@types/nodemailer": "^8.0.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/smtp-server": "^3.5.13",
     "dotenv": "^18.0.8",
     "embedded-postgres": "^18.4.0-beta.17",
     "eslint": "^9",
     "eslint-config-next": "16.4.2",
+    "mailparser": "^3.9.40",
     "prettier": "^3.9.10",
+    "smtp-server": "^3.19.23",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5"
+  },
+  "overrides": {
+    "nodemailer": "^10.1.2"
   }
 }
