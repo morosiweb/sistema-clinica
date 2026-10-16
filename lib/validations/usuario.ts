@@ -6,6 +6,7 @@ export const usuarioSchema = z.object({
   password: z.string().min(8, "Mínimo 8 caracteres").optional().or(z.literal("")),
   rol: z.enum(["ADMIN", "SECRETARIA", "MEDICO"]),
   activo: z.boolean(),
+  medicoId: z.string().optional().or(z.literal("")),
 });
 
 export type UsuarioInput = z.infer<typeof usuarioSchema>;

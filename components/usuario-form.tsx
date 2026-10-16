@@ -9,6 +9,7 @@ export type UsuarioFormValues = {
   password: string;
   rol: "ADMIN" | "SECRETARIA" | "MEDICO";
   activo: boolean;
+  medicoId: string;
 };
 
 const vacio: UsuarioFormValues = {
@@ -17,14 +18,17 @@ const vacio: UsuarioFormValues = {
   password: "",
   rol: "SECRETARIA",
   activo: true,
+  medicoId: "",
 };
 
 export function UsuarioForm({
   valoresIniciales,
   usuarioId,
+  medicosDisponibles,
 }: {
   valoresIniciales?: UsuarioFormValues;
   usuarioId?: string;
+  medicosDisponibles: { id: string; nombre: string; apellido: string }[];
 }) {
   const router = useRouter();
   const [valores, setValores] = useState<UsuarioFormValues>(valoresIniciales ?? vacio);
@@ -117,6 +121,29 @@ export function UsuarioForm({
           <option value="ADMIN">Admin</option>
         </select>
       </div>
+
+      {valores.rol === "MEDICO" && (
+        <div className="space-y-1">
+          <label className="text-sm font-medium">Médico vinculado</label>
+          <select
+            className={inputClass}
+            value={valores.medicoId}
+            onChange={(e) => setValores((v) => ({ ...v, medicoId: e.target.value }))}
+          >
+            <option value="">— Sin vincular —</option>
+            {medicosDisponibles.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.apellido}, {m.nombre}
+              </option>
+            ))}
+          </select>
+          {medicosDisponibles.length === 0 && (
+            <p className="text-xs text-neutral-500">
+              No hay médicos sin usuario vinculado. Cargalo primero en Médicos.
+            </p>
+          )}
+        </div>
+      )}
 
       {usuarioId && (
         <div className="space-y-1">

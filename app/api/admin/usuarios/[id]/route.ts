@@ -23,6 +23,18 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return NextResponse.json({ error: "Ya existe otro usuario con ese email" }, { status: 409 });
   }
 
+  if (data.rol !== "MEDICO" && data.medicoId) {
+    return NextResponse.json({ error: "Solo un usuario MEDICO puede vincularse a un médico" }, { status: 400 });
+  }
+  if (data.medicoId) {
+    const yaVinculado = await prisma.usuarioInterno.findFirst({
+      where: { medicoId: data.medicoId, NOT: { id } },
+    });
+    if (yaVinculado) {
+      return NextResponse.json({ error: "Ese médico ya tiene un usuario vinculado" }, { status: 409 });
+    }
+  }
+
   const usuario = await prisma.usuarioInterno.update({
     where: { id },
     data: {
@@ -30,6 +42,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       email: data.email,
       rol: data.rol,
       activo: data.activo,
+      medicoId: data.rol === "MEDICO" ? data.medicoId || null : null,
       ...(data.password
         ? { password: await bcrypt.hash(data.password, 10), intentosFallidos: 0, bloqueadoHasta: null }
         : {}),

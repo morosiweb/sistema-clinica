@@ -15,10 +15,16 @@ export default async function NuevoUsuarioPage() {
   });
   if (!yo || yo.rol !== "ADMIN") redirect("/");
 
+  const medicosDisponibles = await prisma.medico.findMany({
+    where: { usuarioInterno: null },
+    select: { id: true, nombre: true, apellido: true },
+    orderBy: { apellido: "asc" },
+  });
+
   return (
     <div className="mx-auto max-w-xl px-6 py-10">
       <h1 className="mb-6 text-xl font-semibold">Nuevo usuario</h1>
-      <UsuarioForm />
+      <UsuarioForm medicosDisponibles={medicosDisponibles} />
     </div>
   );
 }
