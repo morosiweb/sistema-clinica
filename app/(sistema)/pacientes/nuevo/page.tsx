@@ -1,0 +1,34 @@
+import { PageHeading } from "@/components/page-heading";
+import { redirect } from "next/navigation";
+import { authVigente as auth } from "@/lib/sesion";
+import { prisma } from "@/lib/prisma";
+import { parsePermisos, puedeVer } from "@/lib/pantallas";
+import { PacienteForm } from "@/components/paciente-form";
+
+export const instant = false;
+
+export default async function NuevoPacientePage() {
+  const session = await auth();
+  if (!session?.user) redirect("/login");
+
+  const usuario = await prisma.usuarioInterno.findUnique({
+    where: { id: session.user.id },
+    select: { rol: true, permisos: true },
+  });
+  if (
+    !usuario ||
+    !puedeVer(parsePermisos(usuario.permisos), usuario.rol, ["pacientes"])
+  ) {
+    redirect("/panel");
+  }
+
+  return (
+    <div className="record-page">
+      <PageHeading
+        title="Nuevo paciente"
+        description="Completá los datos para incorporar al paciente a la clínica."
+      />
+      <PacienteForm />
+    </div>
+  );
+}

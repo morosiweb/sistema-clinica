@@ -31,7 +31,7 @@ Los límites deliberados son cinco turnos próximos online, cuatro horas mínima
 
 - Compilación de producción y TypeScript: correctos.
 - ESLint: sin errores ni advertencias.
-- 9 pruebas unitarias y 29 de integración: correctas, incluida reserva completa y recuperación frente a fallo de red en Chromium.
+- 9 pruebas unitarias y 30 de integración: correctas, incluida reserva completa, recuperación frente a fallo de red y navegación por rol en Chromium. El rediseño agrega revisión de pantallas de escritorio y celulares.
 - Migraciones probadas desde cero y desde datos anteriores en PostgreSQL local temporal; concurrencia real y aislamiento de roles públicos verificados.
 - Las dos migraciones quedaron aplicadas en la base configurada, después de comprobar que coincidía con la baseline, no tenía pacientes/turnos y no presentaba conflictos. Los tres usuarios internos se conservaron. No se cargaron datos de pruebas en esa base ni se enviaron correos reales.
 - Se configuró `DIRECT_URL` local para migraciones por conexión de sesión; la aplicación mantiene su conexión con pool.

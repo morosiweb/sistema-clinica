@@ -122,8 +122,8 @@ export function TurnoDetalle({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-md border border-neutral-200 p-4 text-sm dark:border-neutral-800">
+    <div className="clinical-detail space-y-6">
+      <div className="consultation-summary">
         <p className="font-medium">
           {turno.paciente.apellido}, {turno.paciente.nombre} · DNI{" "}
           {turno.paciente.dni}
@@ -158,7 +158,15 @@ export function TurnoDetalle({
         >
           {ESTADOS.map((e) => (
             <option key={e} value={e}>
-              {e}
+              {
+                {
+                  PENDIENTE: "Pendiente",
+                  CONFIRMADO: "Confirmado",
+                  CANCELADO: "Cancelado",
+                  AUSENTE: "Ausente",
+                  ATENDIDO: "Atendido",
+                }[e]
+              }
             </option>
           ))}
         </select>

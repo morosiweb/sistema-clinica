@@ -91,7 +91,7 @@ export function MiTurnoPanel({ token }: { token: string }) {
   }
   if (nuevo)
     return (
-      <main className="mx-auto max-w-md space-y-4 px-6 py-16">
+      <main className="patient-dashboard surface space-y-4 p-8">
         <h1 className="text-xl font-semibold">Nuevo enlace generado</h1>
         <p>Guardá este enlace. El anterior ya no funciona.</p>
         <Link className="break-all underline" href={nuevo}>
@@ -126,7 +126,7 @@ export function MiTurnoPanel({ token }: { token: string }) {
       instanteClinica(t.fecha.slice(0, 10), t.horaInicio).getTime() < ahora,
   );
   return (
-    <main className="mx-auto max-w-2xl space-y-5 px-6 py-10">
+    <main className="patient-dashboard space-y-5">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold">
@@ -134,7 +134,7 @@ export function MiTurnoPanel({ token }: { token: string }) {
           </h1>
           <p className="text-sm">DNI {paciente.dni}</p>
         </div>
-        <Link href="/reservar" className="text-sm underline">
+        <Link href="/reservar" className="btn btn-primary btn-small">
           Reservar otro turno
         </Link>
       </header>
@@ -156,7 +156,13 @@ export function MiTurnoPanel({ token }: { token: string }) {
         return (
           <article key={t.id} className="space-y-2 rounded border p-4 text-sm">
             <p>
-              {t.fecha.slice(0, 10)} · {t.horaInicio}–{t.horaFin}
+              {new Date(t.fecha).toLocaleDateString("es-AR", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+                timeZone: "UTC",
+              })}{" "}
+              · {t.horaInicio}–{t.horaFin}
             </p>
             <p>
               {t.medico.apellido}, {t.medico.nombre} ·{" "}

@@ -1,4 +1,11 @@
 "use client";
+import {
+  ChevronLeft,
+  ChevronRight,
+  RefreshCw,
+  CalendarDays,
+} from "lucide-react";
+import { EstadoBadge } from "@/components/estado-badge";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useHoy, useRecurso } from "@/lib/cliente";
@@ -78,21 +85,35 @@ export function CalendarioTurnos({
   function abrir(t: TurnoCal) {
     router.push(`/turnos/${t.id}`);
   }
+
+  const dias = desde
+    ? Array.from({ length: vista === "semana" ? 7 : 1 }, (_, i) =>
+        sumarDias(desde, i),
+      )
+    : [];
+  function diaBonito(d: string) {
+    return new Date(`${d}T12:00:00Z`).toLocaleDateString("es-AR", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      timeZone: "UTC",
+    });
+  }
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
+    <div className="calendar">
+      <div className="calendar-toolbar">
         <button
           aria-label="Período anterior"
           disabled={!fecha}
           onClick={() => setDia(sumarDias(fecha, vista === "dia" ? -1 : -7))}
         >
-          ←
+          <ChevronLeft size={16} />
         </button>
-        <label className="text-sm">
-          Fecha{" "}
+        <label className="calendar-date">
+          Fecha
           <input
             type="date"
-            className="rounded border p-2 dark:bg-neutral-900"
+            disabled={!hoy}
             value={fecha}
             onChange={(e) => setDia(e.target.value)}
           />
@@ -102,30 +123,28 @@ export function CalendarioTurnos({
           disabled={!fecha}
           onClick={() => setDia(sumarDias(fecha, vista === "dia" ? 1 : 7))}
         >
-          →
+          <ChevronRight size={16} />
         </button>
-        <button className="text-sm underline" onClick={() => setDia(hoy)}>
-          Hoy
-        </button>
-        <label className="text-sm">
-          Vista{" "}
+        <button onClick={() => setDia(hoy)}>Hoy</button>
+        <label className="flex items-center gap-2 text-xs text-neutral-500">
+          Vista
           <select
             value={vista}
             onChange={(e) => setVista(e.target.value as "dia" | "semana")}
-            className="rounded border p-2 dark:bg-neutral-900"
           >
             <option value="dia">Día</option>
             <option value="semana">Semana</option>
           </select>
         </label>
-        <button onClick={recurso.refrescar} className="text-sm underline">
+        <button className="refresh-calendar" onClick={recurso.refrescar}>
+          <RefreshCw size={14} />
           Actualizar
         </button>
       </div>
       {mostrarFiltroMedicos && (
-        <div className="flex flex-wrap gap-3 text-xs">
-          <button className="underline" onClick={() => setSeleccionados([])}>
-            Todos
+        <div className="calendar-doctors">
+          <button onClick={() => setSeleccionados([])}>
+            Todos los médicos
           </button>
           {medicos.data?.map((m) => (
             <label key={m.id}>
@@ -139,7 +158,7 @@ export function CalendarioTurnos({
                       : [...v, m.id],
                   )
                 }
-              />{" "}
+              />
               {m.apellido}
               {!m.activo && " (inactivo)"}
             </label>
@@ -147,130 +166,191 @@ export function CalendarioTurnos({
         </div>
       )}
       {(recurso.error || medicos.error) && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="notice notice-error m-4">
           {recurso.error || medicos.error}
         </p>
       )}
       {recurso.cargando || (mostrarFiltroMedicos && medicos.cargando) ? (
-        <p>Cargando agenda…</p>
-      ) : vista === "dia" ? (
-        <div className="overflow-x-auto">
-          <div className="flex min-w-[550px]">
-            <div className="w-16 shrink-0 pt-8">
-              <div className="relative" style={{ height: alto }}>
-                {filas.map((m) => (
-                  <span
-                    key={m}
-                    className="absolute text-xs text-neutral-500"
-                    style={{ top: (m - min) * 2 }}
-                  >
-                    {hora(m)}
-                  </span>
-                ))}
-              </div>
-            </div>
-            {columnas.map((c) => (
-              <div key={c.id} className="min-w-44 flex-1">
-                <p className="h-8 text-center text-xs font-medium">
-                  {c.apellido}, {c.nombre}
-                </p>
-                <div className="relative border-l" style={{ height: alto }}>
-                  {filas.map((m) =>
-                    mostrarFiltroMedicos ? (
-                      <button
-                        key={m}
-                        aria-label={`Reservar con ${c.apellido} a las ${hora(m)}`}
-                        className="absolute left-0 w-full border-t border-neutral-100 text-left text-xs hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-900"
-                        style={{ top: (m - min) * 2, height: 60 }}
-                        onClick={() =>
-                          router.push(
-                            `/turnos/nuevo?${new URLSearchParams({ medicoId: c.id, fecha, hora: hora(m) })}`,
-                          )
-                        }
-                      />
-                    ) : (
-                      <div
-                        key={m}
-                        className="absolute w-full border-t border-neutral-100 dark:border-neutral-800"
-                        style={{ top: (m - min) * 2 }}
-                      />
-                    ),
-                  )}
-                  {activos
-                    .filter((t) => c.id === "__propio__" || t.medicoId === c.id)
-                    .map((t) => (
-                      <button
-                        key={t.id}
-                        onClick={() => abrir(t)}
-                        title={`${t.horaInicio}–${t.horaFin} ${t.pacienteNombre}`}
-                        className="absolute left-1 right-1 overflow-hidden rounded border border-blue-300 bg-blue-100 px-2 text-left text-xs text-blue-950 dark:bg-blue-950 dark:text-blue-100"
-                        style={{
-                          top: (minutos(t.horaInicio) - min) * 2,
-                          height: Math.max(
-                            20,
-                            (minutos(t.horaFin) - minutos(t.horaInicio)) * 2,
+        <p className="loading-state" role="status">
+          Cargando agenda…
+        </p>
+      ) : (
+        <>
+          <div className="calendar-desktop">
+            <div className="calendar-scroll">
+              {vista === "dia" ? (
+                <div className="calendar-day-grid">
+                  <div className="calendar-time-axis">
+                    <div className="relative" style={{ height: alto }}>
+                      {filas.map((m) => (
+                        <span
+                          key={m}
+                          className="absolute"
+                          style={{ top: (m - min) * 2 }}
+                        >
+                          {hora(m)}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  {columnas.map((c) => (
+                    <div key={c.id} className="calendar-doctor-column">
+                      <p className="calendar-doctor-name">
+                        {c.id === "__propio__"
+                          ? "Mi agenda"
+                          : `${c.apellido}, ${c.nombre}`}
+                      </p>
+                      <div className="calendar-track" style={{ height: alto }}>
+                        {filas.map((m) =>
+                          mostrarFiltroMedicos ? (
+                            <button
+                              key={m}
+                              aria-label={`Reservar con ${c.apellido} a las ${hora(m)}`}
+                              className="calendar-line"
+                              style={{ top: (m - min) * 2 }}
+                              onClick={() =>
+                                router.push(
+                                  `/turnos/nuevo?${new URLSearchParams({ medicoId: c.id, fecha, hora: hora(m) })}`,
+                                )
+                              }
+                            />
+                          ) : (
+                            <div
+                              key={m}
+                              className="calendar-line"
+                              style={{ top: (m - min) * 2 }}
+                            />
                           ),
-                        }}
-                      >
-                        <span className="font-semibold">
-                          {t.horaInicio}–{t.horaFin}
-                        </span>{" "}
-                        {t.pacienteNombre} · {t.estado}
-                      </button>
-                    ))}
+                        )}
+                        {activos
+                          .filter(
+                            (t) => c.id === "__propio__" || t.medicoId === c.id,
+                          )
+                          .map((t) => (
+                            <button
+                              key={t.id}
+                              onClick={() => abrir(t)}
+                              aria-label={`${t.horaInicio}–${t.horaFin} ${t.pacienteNombre} · ${t.estado}`}
+                              title={`${t.horaInicio}–${t.horaFin} ${t.pacienteNombre}`}
+                              className="calendar-event"
+                              data-estado={t.estado}
+                              style={{
+                                top: (minutos(t.horaInicio) - min) * 2,
+                                height: Math.max(
+                                  20,
+                                  (minutos(t.horaFin) - minutos(t.horaInicio)) *
+                                    2,
+                                ),
+                              }}
+                            >
+                              <span className="event-time">
+                                {t.horaInicio}–{t.horaFin}
+                              </span>{" "}
+                              <span className="event-name">
+                                {t.pacienteNombre}
+                              </span>{" "}
+                              <span className="event-state">· {t.estado}</span>
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              </div>
+              ) : (
+                <div className="calendar-week">
+                  {dias.map((d) => (
+                    <div key={d} className="calendar-week-day">
+                      <p>{diaBonito(d)}</p>
+                      {activos
+                        .filter((t) => t.fecha.slice(0, 10) === d)
+                        .map((t) => (
+                          <button
+                            key={t.id}
+                            onClick={() => abrir(t)}
+                            className="week-event"
+                          >
+                            <strong>
+                              {t.horaInicio}–{t.horaFin}
+                            </strong>
+                            {t.pacienteNombre}
+                            <br />
+                            {t.medicoNombre}
+                          </button>
+                        ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="calendar-mobile-list">
+            {dias.map((d) => (
+              <section key={d}>
+                <h3>{diaBonito(d)}</h3>
+                {activos
+                  .filter((t) => t.fecha.slice(0, 10) === d)
+                  .map((t) => (
+                    <button
+                      key={t.id}
+                      className="calendar-mobile-event"
+                      onClick={() => abrir(t)}
+                    >
+                      <span>
+                        {t.horaInicio}
+                        <small>{t.horaFin}</small>
+                      </span>
+                      <span>
+                        {t.pacienteNombre}
+                        <small>{t.medicoNombre}</small>
+                      </span>
+                      <EstadoBadge estado={t.estado} />
+                    </button>
+                  ))}
+                {!activos.some((t) => t.fecha.slice(0, 10) === d) && (
+                  <div className="empty-state">
+                    <CalendarDays size={25} />
+                    <p>No hay turnos para este día.</p>
+                    {mostrarFiltroMedicos && (
+                      <button
+                        className="text-link mt-3"
+                        onClick={() => router.push(`/turnos/nuevo?fecha=${d}`)}
+                      >
+                        Reservar un turno <ChevronRight size={14} />
+                      </button>
+                    )}
+                  </div>
+                )}
+              </section>
             ))}
           </div>
-        </div>
-      ) : (
-        desde && (
-          <div className="grid gap-2 overflow-x-auto md:grid-cols-7">
-            {Array.from({ length: 7 }, (_, i) => sumarDias(desde, i)).map(
-              (d) => (
-                <div key={d} className="space-y-2 rounded border p-2">
-                  <p className="text-xs font-medium">
-                    {new Date(`${d}T00:00:00Z`).toLocaleDateString("es-AR", {
-                      timeZone: "UTC",
-                      weekday: "short",
-                      day: "numeric",
-                    })}
-                  </p>
-                  {activos
-                    .filter((t) => t.fecha.slice(0, 10) === d)
-                    .map((t) => (
-                      <button
-                        key={t.id}
-                        onClick={() => abrir(t)}
-                        className="block w-full rounded bg-blue-100 p-2 text-left text-xs text-blue-950 dark:bg-blue-950 dark:text-blue-100"
-                      >
-                        {t.horaInicio}–{t.horaFin}
-                        <br />
-                        {t.pacienteNombre}
-                        <br />
-                        {t.medicoNombre}
-                      </button>
-                    ))}
-                </div>
-              ),
-            )}
-          </div>
-        )
+        </>
       )}
+      <div className="calendar-legend">
+        <span>
+          <i />
+          Por atender
+        </span>
+        <span>
+          <i />
+          Atendido
+        </span>
+        <span>
+          <i />
+          Ausente
+        </span>
+      </div>
       {cancelados.length > 0 && (
-        <details>
-          <summary className="cursor-pointer text-sm">
-            Turnos cancelados ({cancelados.length})
-          </summary>
-          <div className="mt-2 space-y-1">
+        <details className="calendar-cancelled">
+          <summary>Turnos cancelados ({cancelados.length})</summary>
+          <div className="mt-3 space-y-2">
             {cancelados.map((t) => (
               <button
                 key={t.id}
                 onClick={() => abrir(t)}
-                className="block text-sm text-neutral-500 underline"
+                className="block text-left"
               >
-                {t.fecha.slice(0, 10)} · {t.horaInicio} · {t.pacienteNombre} ·{" "}
-                {t.medicoNombre}
+                {diaBonito(t.fecha.slice(0, 10))} · {t.horaInicio} ·{" "}
+                {t.pacienteNombre} · {t.medicoNombre}
               </button>
             ))}
           </div>

@@ -1,9 +1,13 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { connection } from "next/server";
 
 // Las páginas y las API consultan el estado actual: un JWT emitido antes de
 // una baja o cambio de rol no conserva acceso a información interna.
 export async function authVigente() {
+  // Auth.js genera valores criptográficos: la sesión debe resolverse durante
+  // la petición, también cuando Next prepara una página con Cache Components.
+  await connection();
   const session = await auth();
   if (!session?.user) return null;
   const usuario = await prisma.usuarioInterno.findUnique({

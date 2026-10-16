@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Brand } from "@/components/brand";
+import { ArrowRight, ShieldCheck, HeartPulse } from "lucide-react";
 import { signIn } from "next-auth/react";
 
 export default function LoginPage() {
@@ -40,49 +43,91 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-neutral-50 dark:bg-neutral-950">
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-sm space-y-4 rounded-lg border border-neutral-200 bg-white p-8 shadow-sm dark:border-neutral-800 dark:bg-neutral-900"
-      >
-        <h1 className="text-xl font-semibold">Sistema Clínica</h1>
-        <div className="space-y-1">
-          <label htmlFor="email" className="text-sm font-medium">
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            required
-            autoComplete="username"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-800"
-          />
+    <main className="login-page">
+      <section className="login-story">
+        <Brand light />
+        <div>
+          <p className="eyebrow">ESPACIO DEL PERSONAL</p>
+          <h2>
+            Cuidar mejor.
+            <br />
+            <em>Trabajar en equipo.</em>
+          </h2>
+          <p>
+            Un espacio para conectar la agenda, el consultorio y cada paso de la
+            atención.
+          </p>
+          <div className="login-art" aria-hidden="true">
+            <HeartPulse size={150} strokeWidth={0.8} />
+          </div>
         </div>
-        <div className="space-y-1">
-          <label htmlFor="password" className="text-sm font-medium">
-            Contraseña
-          </label>
-          <input
-            id="password"
-            type="password"
-            required
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-800"
-          />
+        <span className="login-story-footer">
+          Cerca de las personas. En cada detalle.
+        </span>
+      </section>
+      <section className="login-form-area">
+        <Link href="/" className="login-back">
+          ← Volver a la clínica
+        </Link>
+        <div className="login-form-wrap">
+          <span className="verification-icon">
+            <ShieldCheck size={25} />
+          </span>
+          <p className="eyebrow">BIENVENIDO A TU ESPACIO</p>
+          <h1>Qué bueno verte.</h1>
+          <p className="muted">
+            Ingresá con tus datos para comenzar la jornada.
+          </p>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <label htmlFor="email" className="field-label">
+              Email
+              <input
+                id="email"
+                type="email"
+                required
+                autoComplete="username"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="field-input"
+                placeholder="nombre@clinica.com"
+              />
+            </label>
+            <label htmlFor="password" className="field-label">
+              Contraseña
+              <input
+                id="password"
+                type="password"
+                required
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="field-input"
+                placeholder="Tu contraseña"
+              />
+            </label>
+            {error && (
+              <p role="alert" className="notice notice-error">
+                {error}
+              </p>
+            )}
+            <button
+              type="submit"
+              disabled={cargando}
+              className="btn btn-primary w-full"
+            >
+              {cargando ? "Ingresando..." : "Ingresar"}
+              <ArrowRight size={18} />
+            </button>
+          </form>
+          <p className="login-note">
+            <ShieldCheck size={15} />
+            Acceso exclusivo para personal autorizado.
+          </p>
         </div>
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <button
-          type="submit"
-          disabled={cargando}
-          className="w-full rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
-        >
-          {cargando ? "Ingresando..." : "Ingresar"}
-        </button>
-      </form>
-    </div>
+        <p className="login-bottom">
+          ¿Necesitás acceso? Comunicate con administración.
+        </p>
+      </section>
+    </main>
   );
 }

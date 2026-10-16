@@ -104,7 +104,9 @@ export function TurnoForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-1">
-        <label className="text-sm font-medium">Paciente *</label>
+        <label htmlFor="turno-buscar-paciente" className="text-sm font-medium">
+          Paciente *
+        </label>
         {pacienteElegido ? (
           <div className="flex items-center justify-between rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700">
             <span>
@@ -125,6 +127,7 @@ export function TurnoForm({
         ) : (
           <div className="relative">
             <input
+              id="turno-buscar-paciente"
               className={inputClass}
               placeholder="Buscar por DNI, nombre o apellido..."
               value={busquedaPaciente}

@@ -1,6 +1,18 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import {
+  ArrowRight,
+  ArrowLeft,
+  CalendarDays,
+  Clock3,
+  ShieldCheck,
+  Stethoscope,
+  Check,
+  Mail,
+  ChevronRight,
+} from "lucide-react";
+import { sumarDias } from "@/lib/fecha";
 import { fetchJSON, mensajeError, useHoy, useRecurso } from "@/lib/cliente";
 type Medico = {
   id: string;
@@ -9,10 +21,8 @@ type Medico = {
   especialidad: { id: string; nombre: string };
 };
 type Paso = "medico" | "horario" | "datos" | "codigo" | "confirmacion";
-const input =
-  "mt-1 w-full rounded-md border border-neutral-300 p-2 text-sm dark:border-neutral-700 dark:bg-neutral-900";
-const boton =
-  "rounded-md bg-neutral-900 px-4 py-2 text-sm text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900";
+const input = "field-input";
+const boton = "btn btn-primary";
 export default function ReservarPage() {
   const hoy = useHoy();
   const [paso, setPaso] = useState<Paso>("medico");
@@ -105,245 +115,444 @@ export default function ReservarPage() {
       setEnviando(false);
     }
   }
+
+  const pasos: Paso[] = ["medico", "horario", "datos", "codigo"];
+  const indice = paso === "confirmacion" ? 4 : pasos.indexOf(paso);
+  const titulos = [
+    "Elegí a tu profesional",
+    "Encontrá tu momento",
+    "Contanos sobre vos",
+    "Un último paso, y listo",
+  ];
+  const descripciones = [
+    "Buscá por especialidad y seleccioná con quién querés atenderte.",
+    "Consultá la disponibilidad y elegí el horario que mejor te quede.",
+    "Completá tus datos para continuar con la reserva.",
+    "Ingresá el código que enviamos a tu email para confirmar la reserva.",
+  ];
+  const fechaBonita = fecha
+    ? new Date(`${fecha}T12:00:00Z`).toLocaleDateString("es-AR", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        timeZone: "UTC",
+      })
+    : "Fecha a elegir";
   return (
-    <main className="mx-auto max-w-xl space-y-5 px-6 py-10">
-      <Link href="/" className="text-sm underline">
-        Inicio
-      </Link>
-      <h1 className="text-2xl font-semibold">Reservá tu turno</h1>
-      <p className="text-sm text-neutral-500">
-        Sin cuentas ni contraseñas. Verificamos tu acceso con un código por
-        email.
-      </p>
-      {error && (
-        <p role="alert" className="text-sm text-red-600">
-          {error}
-        </p>
-      )}
-      {paso === "medico" && (
-        <>
-          <label className="block text-sm">
-            Especialidad
-            <select
-              className={input}
-              value={especialidad}
-              onChange={(e) => setEspecialidad(e.target.value)}
+    <main className="booking-page">
+      <div className="booking-intro">
+        <p className="eyebrow">UN MOMENTO PARA TU SALUD</p>
+        <h1>
+          Reservá tu turno<span className="greeting-dot">.</span>
+        </h1>
+        <p>Simple, seguro y sin crear una cuenta.</p>
+      </div>
+      <ol className="booking-steps" aria-label="Pasos de la reserva">
+        {["Profesional", "Día y horario", "Tus datos", "Confirmación"].map(
+          (nombre, i) => (
+            <li
+              key={nombre}
+              className={
+                i < indice
+                  ? "step-complete"
+                  : i === indice
+                    ? "step-current"
+                    : ""
+              }
+              aria-current={i === indice ? "step" : undefined}
             >
-              <option value="">Todas</option>
-              {especialidades.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.nombre}
-                </option>
-              ))}
-            </select>
-          </label>
-          {medicos.cargando && <p>Cargando médicos…</p>}
-          {medicos.error && <p role="alert">{medicos.error}</p>}
-          {(medicos.data || [])
-            .filter((m) => !especialidad || m.especialidad.id === especialidad)
-            .map((m) => (
-              <button
-                key={m.id}
-                className="block w-full rounded border p-3 text-left text-sm"
-                onClick={() => {
-                  setMedico(m);
-                  setHora("");
-                  setError("");
-                  setPaso("horario");
-                }}
-              >
-                {m.apellido}, {m.nombre} · {m.especialidad.nombre}
-              </button>
-            ))}
-          {medicos.data?.length === 0 && <p>No hay médicos disponibles.</p>}
-        </>
-      )}
-      {paso === "horario" && medico && (
-        <>
-          <p>
-            {medico.apellido}, {medico.nombre} · {medico.especialidad.nombre}
-          </p>
-          <button
-            className="text-sm underline"
-            onClick={() => setPaso("medico")}
-          >
-            Cambiar médico
-          </button>
-          <label className="block text-sm">
-            Fecha
-            <input
-              type="date"
-              min={hoy}
-              required
-              className={input}
-              value={fecha}
-              onChange={(e) => {
-                setDia(e.target.value);
-                setHora("");
-              }}
-            />
-          </label>
-          {disponibilidad.cargando ? (
-            <p>Cargando horarios…</p>
-          ) : disponibilidad.error ? (
-            <p role="alert">{disponibilidad.error}</p>
-          ) : (
-            <div className="grid grid-cols-4 gap-2">
-              {disponibilidad.data?.slots.map((h) => (
-                <button
-                  key={h}
-                  className="rounded border p-2 text-sm"
-                  onClick={() => {
-                    setHora(h);
-                    setPaso(verificacionId ? "codigo" : "datos");
-                  }}
-                >
-                  {h}
-                </button>
-              ))}
+              <span>{i < indice ? <Check size={15} /> : i + 1}</span>
+              <strong>{nombre}</strong>
+            </li>
+          ),
+        )}
+      </ol>
+      <div className="booking-grid">
+        <section className="booking-card" aria-live="polite">
+          {paso !== "confirmacion" && (
+            <div className="booking-card-heading">
+              <span className="eyebrow">PASO {indice + 1} DE 4</span>
+              <h2>{titulos[indice]}</h2>
+              <p>{descripciones[indice]}</p>
             </div>
           )}
-          {disponibilidad.data?.slots.length === 0 && (
-            <p>No hay horarios disponibles ese día.</p>
+          {error && (
+            <p role="alert" className="notice notice-error">
+              {error}
+            </p>
           )}
-        </>
-      )}
-      {paso === "datos" && (
-        <form onSubmit={pedirCodigo} className="space-y-4">
-          <p className="text-sm">
-            {medico?.apellido} · {fecha} · {hora}
-          </p>
-          <button
-            type="button"
-            className="text-sm underline"
-            onClick={() => setPaso("horario")}
-          >
-            Cambiar fecha u horario
-          </button>
-          {(
-            [
-              ["dni", "DNI"],
-              ["nombre", "Nombre"],
-              ["apellido", "Apellido"],
-              ["telefono", "Teléfono"],
-              ["email", "Email"],
-            ] as const
-          ).map(([key, label]) => (
-            <label key={key} className="block text-sm">
-              {label}
-              <input
-                className={input}
-                required
-                type={
-                  key === "email"
-                    ? "email"
-                    : key === "telefono"
-                      ? "tel"
-                      : "text"
-                }
-                inputMode={key === "dni" ? "numeric" : undefined}
-                autoComplete={key === "email" ? "email" : undefined}
-                value={datos[key]}
-                onChange={(e) => cambiarDato(key, e.target.value)}
-              />
-            </label>
-          ))}
-          <label className="block text-sm">
-            Motivo de consulta (opcional)
-            <textarea
-              className={input}
-              maxLength={300}
-              value={datos.motivoConsulta}
-              onChange={(e) => cambiarDato("motivoConsulta", e.target.value)}
-            />
-          </label>
-          <p className="text-sm text-neutral-500">
-            Si ya sos paciente, enviamos el código al email que tiene registrado
-            la clínica. Para actualizarlo, comunicate con secretaría.
-          </p>
-          <button className={boton} disabled={enviando}>
-            {enviando ? "Enviando…" : "Recibir código"}
-          </button>
-        </form>
-      )}
-      {paso === "codigo" && (
-        <form onSubmit={reservar} className="space-y-4">
-          <p className="text-sm">
-            Revisá tu email registrado. El código vence en 10 minutos; el
-            horario se confirma al completar este paso.
-          </p>
-          <p className="text-sm">
-            {medico?.apellido} · {fecha} · {hora}
-          </p>
-          <label className="block text-sm">
-            Código de seis dígitos
-            <input
-              className={input}
-              required
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              pattern="[0-9]{6}"
-              maxLength={6}
-              value={codigo}
-              onChange={(e) => setCodigo(e.target.value)}
-            />
-          </label>
-          <button className={boton} disabled={enviando || codigo.length !== 6}>
-            {enviando ? "Confirmando…" : "Confirmar reserva"}
-          </button>
-          <div className="flex flex-wrap gap-4 text-sm">
-            <button
-              type="button"
-              disabled={enviando}
-              onClick={() => setPaso("horario")}
-              className="underline"
-            >
-              Cambiar horario
-            </button>
-            <button
-              type="button"
-              disabled={enviando}
-              onClick={() => pedirCodigo()}
-              className="underline"
-            >
-              Solicitar otro código
-            </button>
-            <button
-              type="button"
-              disabled={enviando}
-              onClick={() => setPaso("datos")}
-              className="underline"
-            >
-              Revisar mis datos
-            </button>
+          {paso === "medico" && (
+            <>
+              <label className="field-label">
+                Especialidad
+                <select
+                  className={input}
+                  value={especialidad}
+                  onChange={(e) => setEspecialidad(e.target.value)}
+                >
+                  <option value="">Todas las especialidades</option>
+                  {especialidades.map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {e.nombre}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="doctor-options">
+                {medicos.cargando && (
+                  <p className="loading-state" role="status">
+                    Cargando médicos…
+                  </p>
+                )}
+                {medicos.error && (
+                  <p role="alert" className="notice notice-error">
+                    {medicos.error}
+                  </p>
+                )}
+                {(medicos.data || [])
+                  .filter(
+                    (m) => !especialidad || m.especialidad.id === especialidad,
+                  )
+                  .map((m) => (
+                    <button
+                      key={m.id}
+                      className="doctor-option"
+                      onClick={() => {
+                        setMedico(m);
+                        setHora("");
+                        setError("");
+                        setPaso("horario");
+                      }}
+                    >
+                      <span className="doctor-avatar">
+                        {m.nombre[0]}
+                        {m.apellido[0]}
+                      </span>
+                      <span>
+                        <strong>
+                          {m.apellido}, {m.nombre}
+                        </strong>
+                        <small>{m.especialidad.nombre}</small>
+                      </span>
+                      <ChevronRight size={20} />
+                    </button>
+                  ))}
+                {medicos.data?.length === 0 && (
+                  <div className="empty-state">
+                    <Stethoscope size={28} />
+                    <p>No hay médicos disponibles por el momento.</p>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+          {paso === "horario" && medico && (
+            <>
+              <button
+                className="text-link mb-5"
+                onClick={() => setPaso("medico")}
+              >
+                <ArrowLeft size={15} />
+                Cambiar médico
+              </button>
+              <label className="field-label">
+                Fecha
+                <input
+                  type="date"
+                  min={hoy}
+                  required
+                  className={input}
+                  value={fecha}
+                  onChange={(e) => {
+                    setDia(e.target.value);
+                    setHora("");
+                  }}
+                />
+              </label>
+              <div className="date-options">
+                {hoy &&
+                  Array.from({ length: 5 }, (_, i) => sumarDias(hoy, i)).map(
+                    (d) => (
+                      <button
+                        key={d}
+                        aria-pressed={fecha === d}
+                        className={fecha === d ? "date-active" : ""}
+                        onClick={() => {
+                          setDia(d);
+                          setHora("");
+                        }}
+                      >
+                        <small>
+                          {new Date(`${d}T12:00:00Z`).toLocaleDateString(
+                            "es-AR",
+                            { weekday: "short", timeZone: "UTC" },
+                          )}
+                        </small>
+                        <strong>{Number(d.slice(8))}</strong>
+                      </button>
+                    ),
+                  )}
+              </div>
+              <div className="slots-heading">
+                <Clock3 size={17} />
+                <h3>Horarios disponibles</h3>
+                <span>Hora de la clínica</span>
+              </div>
+              {disponibilidad.cargando ? (
+                <p className="loading-state" role="status">
+                  Cargando horarios…
+                </p>
+              ) : disponibilidad.error ? (
+                <p role="alert" className="notice notice-error">
+                  {disponibilidad.error}
+                </p>
+              ) : (
+                <div className="slot-grid">
+                  {disponibilidad.data?.slots.map((h) => (
+                    <button
+                      key={h}
+                      className="time-slot"
+                      onClick={() => {
+                        setHora(h);
+                        setPaso(verificacionId ? "codigo" : "datos");
+                      }}
+                    >
+                      {h}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {disponibilidad.data?.slots.length === 0 && (
+                <div className="empty-state">
+                  <CalendarDays size={28} />
+                  <h3>No hay horarios ese día</h3>
+                  <p>Probá con otra fecha para encontrar tu turno.</p>
+                </div>
+              )}
+            </>
+          )}
+          {paso === "datos" && (
+            <form onSubmit={pedirCodigo} className="space-y-5">
+              <button
+                type="button"
+                className="text-link"
+                onClick={() => setPaso("horario")}
+              >
+                <ArrowLeft size={15} />
+                Cambiar fecha u horario
+              </button>
+              <div className="form-grid">
+                {(
+                  [
+                    ["dni", "DNI"],
+                    ["nombre", "Nombre"],
+                    ["apellido", "Apellido"],
+                    ["telefono", "Teléfono"],
+                    ["email", "Email"],
+                  ] as const
+                ).map(([key, label]) => (
+                  <label
+                    key={key}
+                    className={`field-label ${key === "email" ? "field-full" : ""}`}
+                  >
+                    {label}
+                    <input
+                      className={input}
+                      required
+                      type={
+                        key === "email"
+                          ? "email"
+                          : key === "telefono"
+                            ? "tel"
+                            : "text"
+                      }
+                      inputMode={key === "dni" ? "numeric" : undefined}
+                      autoComplete={
+                        {
+                          nombre: "given-name",
+                          apellido: "family-name",
+                          telefono: "tel",
+                          email: "email",
+                          dni: "off",
+                        }[key]
+                      }
+                      value={datos[key]}
+                      onChange={(e) => cambiarDato(key, e.target.value)}
+                    />
+                  </label>
+                ))}
+              </div>
+              <label className="field-label">
+                Motivo de consulta <span className="optional">(opcional)</span>
+                <textarea
+                  className={input}
+                  rows={3}
+                  maxLength={300}
+                  value={datos.motivoConsulta}
+                  onChange={(e) =>
+                    cambiarDato("motivoConsulta", e.target.value)
+                  }
+                />
+              </label>
+              <p className="notice notice-info">
+                <ShieldCheck size={18} />
+                Si ya sos paciente, enviamos el código al email registrado en la
+                clínica. Para actualizarlo, comunicate con secretaría.
+              </p>
+              <button className={boton} disabled={enviando}>
+                {enviando ? "Enviando…" : "Recibir código"}
+                <ArrowRight size={17} />
+              </button>
+            </form>
+          )}
+          {paso === "codigo" && (
+            <form onSubmit={reservar} className="space-y-5">
+              <span className="verification-icon">
+                <Mail size={27} />
+              </span>
+              <p className="muted">
+                Revisá tu email registrado. El código vence en 10 minutos. Tu
+                horario se confirma al completar este paso.
+              </p>
+              <label className="field-label">
+                Código de seis dígitos
+                <input
+                  className="field-input otp-input"
+                  required
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  pattern="[0-9]{6}"
+                  maxLength={6}
+                  placeholder="000000"
+                  value={codigo}
+                  onChange={(e) => setCodigo(e.target.value)}
+                />
+              </label>
+              <button
+                className={boton}
+                disabled={enviando || codigo.length !== 6}
+              >
+                {enviando ? "Confirmando…" : "Confirmar reserva"}
+                <Check size={17} />
+              </button>
+              <div className="booking-secondary-actions">
+                <button
+                  type="button"
+                  disabled={enviando}
+                  onClick={() => setPaso("horario")}
+                >
+                  Cambiar horario
+                </button>
+                <button
+                  type="button"
+                  disabled={enviando}
+                  onClick={() => pedirCodigo()}
+                >
+                  Solicitar otro código
+                </button>
+                <button
+                  type="button"
+                  disabled={enviando}
+                  onClick={() => setPaso("datos")}
+                >
+                  Revisar mis datos
+                </button>
+              </div>
+              <p className="help-text">
+                Si no recibís el código o no tenés acceso a tu email, comunicate
+                con secretaría.
+              </p>
+            </form>
+          )}
+          {paso === "confirmacion" && resultado && (
+            <div className="booking-success">
+              <span className="success-icon">
+                <Check size={32} />
+              </span>
+              <p className="eyebrow">YA TENÉS TU PRÓXIMA VISITA</p>
+              <h2>¡Turno reservado!</h2>
+              <p>
+                {resultado.correoEnviado
+                  ? "Enviamos la confirmación y tu enlace de gestión por email."
+                  : "El turno quedó reservado, pero no pudimos enviar la confirmación por email. Guardá este enlace."}
+              </p>
+              <Link className="btn btn-primary" href={resultado.linkAcceso}>
+                Ver y gestionar mis turnos <ArrowRight size={17} />
+              </Link>
+            </div>
+          )}
+        </section>
+        <aside className="booking-aside">
+          <div className="booking-summary">
+            <div className="summary-title">
+              <CalendarDays size={20} />
+              <h2>Tu próxima visita</h2>
+            </div>
+            {medico ? (
+              <>
+                <div className="summary-doctor">
+                  <span className="doctor-avatar">
+                    {medico.nombre[0]}
+                    {medico.apellido[0]}
+                  </span>
+                  <div>
+                    <strong>
+                      {medico.apellido}, {medico.nombre}
+                    </strong>
+                    <span>{medico.especialidad.nombre}</span>
+                  </div>
+                </div>
+                <dl>
+                  <div>
+                    <dt>
+                      <CalendarDays size={16} />
+                      Fecha
+                    </dt>
+                    <dd>{paso === "medico" ? "A elegir" : fechaBonita}</dd>
+                  </div>
+                  <div>
+                    <dt>
+                      <Clock3 size={16} />
+                      Horario
+                    </dt>
+                    <dd>{hora ? `${hora} h` : "A elegir"}</dd>
+                  </div>
+                </dl>
+                <span className="summary-status">
+                  <span />
+                  {paso === "confirmacion"
+                    ? "Reserva realizada"
+                    : "Reserva en curso"}
+                </span>
+              </>
+            ) : (
+              <div className="summary-placeholder">
+                <Stethoscope size={35} strokeWidth={1.2} />
+                <p>Tu turno empieza acá.</p>
+                <span>
+                  Elegí a tu profesional para ver el resumen de tu visita.
+                </span>
+              </div>
+            )}
           </div>
-          <p className="text-xs text-neutral-500">
-            Si no recibís el código o no tenés acceso a tu email, comunicate con
-            secretaría.
-          </p>
-        </form>
-      )}
-      {paso === "confirmacion" && resultado && (
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold">¡Turno reservado!</h2>
-          <p className="text-sm">
-            {resultado.correoEnviado
-              ? "Enviamos la confirmación y tu enlace de gestión por email."
-              : "El turno quedó reservado, pero no pudimos enviar la confirmación por email. Guardá este enlace."}
-          </p>
-          <Link
-            className="block break-all rounded border p-4 text-sm underline"
-            href={resultado.linkAcceso}
-          >
-            Ver y gestionar mis turnos
+          <div className="booking-help">
+            <ShieldCheck size={20} />
+            <div>
+              <strong>Tu información, cuidada.</strong>
+              <p>
+                Verificamos tu identidad con un código por email, sin cuentas ni
+                contraseñas.
+              </p>
+            </div>
+          </div>
+          <Link className="text-link" href="/mi-turno/recuperar">
+            Ya tengo un turno <ArrowUpRightIcon />
           </Link>
-        </div>
-      )}
-      <p className="text-sm">
-        <Link href="/mi-turno/recuperar" className="underline">
-          Ya tengo un turno: recuperar mi acceso
-        </Link>
-      </p>
+        </aside>
+      </div>
     </main>
   );
+}
+function ArrowUpRightIcon() {
+  return <ArrowRight size={16} />;
 }

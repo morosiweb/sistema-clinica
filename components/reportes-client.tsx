@@ -1,5 +1,6 @@
 "use client";
 
+import { PageHeading } from "@/components/page-heading";
 import { useState } from "react";
 import { useHoy, useRecurso } from "@/lib/cliente";
 import Link from "next/link";
@@ -38,10 +39,13 @@ export function ReportesClient() {
   );
 
   return (
-    <div className="mx-auto max-w-2xl px-6 py-10">
-      <h1 className="mb-6 text-xl font-semibold">Reportes</h1>
+    <div className="record-page">
+      <PageHeading
+        title="Reportes"
+        description="Consultá los cobros y la actividad de caja del período."
+      />
 
-      <div className="mb-6 flex items-end gap-2">
+      <div className="mb-6 flex flex-wrap items-end gap-3">
         <div className="space-y-1">
           <label
             htmlFor="reportes-client-campo-1"

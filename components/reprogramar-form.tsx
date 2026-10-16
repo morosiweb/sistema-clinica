@@ -47,11 +47,14 @@ export function ReprogramarForm({
     }
   }
   return (
-    <form onSubmit={confirmar} className="space-y-3 rounded border p-4">
-      <label className="block text-sm">
+    <form
+      onSubmit={confirmar}
+      className="reprogram-form space-y-4 rounded border p-5"
+    >
+      <label className="field-label">
         Médico
         <select
-          className="ml-2 rounded border p-2 dark:bg-neutral-900"
+          className="field-input"
           value={medicoId}
           onChange={(e) => {
             setMedicoId(e.target.value);
@@ -65,7 +68,7 @@ export function ReprogramarForm({
           ))}
         </select>
       </label>
-      <label className="block text-sm">
+      <label className="field-label">
         Fecha
         <input
           type="date"
@@ -76,18 +79,18 @@ export function ReprogramarForm({
             setDia(e.target.value);
             setHora("");
           }}
-          className="ml-2 rounded border p-2 dark:bg-neutral-900"
+          className="field-input"
         />
       </label>
       {slots.cargando ? (
         <p>Cargando horarios…</p>
       ) : (
-        <label className="block text-sm">
+        <label className="field-label">
           Horario
           <select
             required
             value={hora}
-            className="ml-2 rounded border p-2 dark:bg-neutral-900"
+            className="field-input"
             onChange={(e) => setHora(e.target.value)}
           >
             <option value="">Elegir</option>
@@ -110,7 +113,7 @@ export function ReprogramarForm({
           slots.cargando ||
           !slots.data?.slots.includes(hora)
         }
-        className="rounded bg-neutral-900 px-3 py-2 text-sm text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
+        className="btn btn-primary btn-small"
       >
         {enviando ? "Guardando…" : "Confirmar cambio"}
       </button>

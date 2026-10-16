@@ -91,20 +91,26 @@ export function EspecialidadManager({
 
   return (
     <div className="space-y-6">
-      <form onSubmit={crear} className="flex gap-2">
-        <input
-          required
-          placeholder="Nombre (ej: Cardiología)"
-          className={inputClass}
-          value={nombre}
-          onChange={(e) => setNombre(e.target.value)}
-        />
-        <input
-          placeholder="Descripción (opcional)"
-          className={inputClass}
-          value={descripcion}
-          onChange={(e) => setDescripcion(e.target.value)}
-        />
+      <form onSubmit={crear} className="specialty-form">
+        <label className="field-label">
+          Nombre de la especialidad
+          <input
+            required
+            placeholder="Nombre (ej: Cardiología)"
+            className={inputClass}
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+          />
+        </label>
+        <label className="field-label">
+          Descripción <span className="optional">(opcional)</span>
+          <input
+            placeholder="Descripción (opcional)"
+            className={inputClass}
+            value={descripcion}
+            onChange={(e) => setDescripcion(e.target.value)}
+          />
+        </label>
         <button
           type="submit"
           disabled={guardando}

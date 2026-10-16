@@ -1007,17 +1007,45 @@ async function main() {
             .getByRole("button", { name: "Ingresar", exact: true })
             .click();
           await page.waitForURL("**/panel");
+          await page.locator(".staff-content").waitFor();
+          await mkdir("test-results", { recursive: true });
+          await page.screenshot({
+            path: "test-results/inicio-admin.png",
+            fullPage: true,
+          });
           await page.goto(baseURL + "/turnos");
           await page.getByLabel("Fecha", { exact: true }).fill(futuro);
-          await page.getByRole("button", { name: /10:15.*Titular/ }).waitFor();
+          await page
+            .getByRole("button", { name: /10:15.*Titular/ })
+            .waitFor()
+            .catch(async (error) => {
+              await page.screenshot({
+                path: "test-results/agenda-error.png",
+                fullPage: true,
+              });
+              console.error(await page.locator("body").innerText());
+              throw error;
+            });
           await page.screenshot({
-            path: path.join(temporal, "agenda.png"),
+            path: "test-results/agenda-escritorio.png",
             fullPage: true,
           });
           await page.context().clearCookies();
+          await page.goto(baseURL + "/");
+          await page.screenshot({
+            path: "test-results/portada-escritorio.png",
+            fullPage: true,
+          });
           await page.goto(baseURL + "/reservar");
           await page.getByRole("button", { name: /Prueba, Medico/ }).click();
           await page.getByLabel("Fecha", { exact: true }).fill(futuro);
+          await page
+            .getByRole("button", { name: "13:15", exact: true })
+            .waitFor();
+          await page.screenshot({
+            path: "test-results/reserva-horarios.png",
+            fullPage: true,
+          });
           await page
             .getByRole("button", { name: "13:15", exact: true })
             .click();
@@ -1034,7 +1062,7 @@ async function main() {
           await page
             .getByRole("button", { name: "Recibir código", exact: true })
             .click();
-          await page.getByRole("alert").waitFor();
+          await page.locator(".booking-card").getByRole("alert").waitFor();
           assert(
             await page
               .getByRole("button", { name: "Recibir código", exact: true })
@@ -1059,6 +1087,158 @@ async function main() {
             path: "test-results/reserva-verificada.png",
             fullPage: true,
           });
+        } finally {
+          await browser.close();
+        }
+      },
+    );
+    await caso(
+      "el rediseño conserva la navegación por rol y se adapta al celular",
+      async () => {
+        const browser = await chromium.launch({ headless: true });
+        await mkdir("test-results", { recursive: true });
+        try {
+          for (const [perfil, api, rutas] of [
+            [
+              "admin",
+              adm,
+              [
+                "/panel",
+                "/pacientes",
+                "/pacientes/nuevo",
+                `/pacientes/${paciente.id}`,
+                "/medicos",
+                "/medicos/nuevo",
+                `/medicos/${medico.id}`,
+                "/especialidades",
+                "/admin/usuarios",
+                "/admin/usuarios/nuevo",
+                `/admin/usuarios/${doctor.id}`,
+                "/turnos/nuevo",
+                "/reportes",
+                "/bloqueos",
+              ],
+            ],
+            ["secretaria", sec, ["/panel", "/turnos", "/pacientes"]],
+            [
+              "medico",
+              doc,
+              ["/panel", "/agenda", `/turnos/${nota.id}`, "/bloqueos"],
+            ],
+          ] as const) {
+            const context = await browser.newContext({
+              storageState: await api.storageState(),
+              viewport: { width: 1440, height: 1000 },
+            });
+            const page = await context.newPage();
+            for (const ruta of rutas) {
+              const response = await page.goto(baseURL + ruta);
+              assert.equal(response?.status(), 200, `${perfil} ${ruta}`);
+              await page.locator(".staff-content").waitFor();
+              assert.equal(new URL(page.url()).pathname, ruta);
+              if (ruta === "/panel") {
+                const nav = page.getByRole("navigation", {
+                  name: "Navegación principal",
+                });
+                assert.equal(
+                  await nav
+                    .getByRole("link", { name: "Usuarios", exact: true })
+                    .count(),
+                  perfil === "admin" ? 1 : 0,
+                );
+                assert.equal(
+                  await nav
+                    .getByRole("link", { name: "Pacientes", exact: true })
+                    .count(),
+                  perfil === "medico" ? 0 : 1,
+                );
+              }
+              await page.screenshot({
+                path: `test-results/${perfil}-${ruta.replaceAll("/", "-")}-desktop.png`,
+                fullPage: true,
+              });
+              await page.setViewportSize({ width: 390, height: 844 });
+              assert(
+                await page.evaluate(
+                  () => document.documentElement.scrollWidth <= innerWidth,
+                ),
+                `Sin desborde: ${perfil} ${ruta}`,
+              );
+              await page.screenshot({
+                path: `test-results/${perfil}-${ruta.replaceAll("/", "-")}-mobile.png`,
+                fullPage: true,
+              });
+              await page.setViewportSize({ width: 320, height: 800 });
+              assert(
+                await page.evaluate(
+                  () => document.documentElement.scrollWidth <= innerWidth,
+                ),
+                `Sin desborde a 320px: ${perfil} ${ruta}`,
+              );
+              await page.setViewportSize({ width: 390, height: 844 });
+              if (ruta === "/panel") {
+                await page
+                  .getByRole("button", { name: "Abrir menú", exact: true })
+                  .click();
+                await page
+                  .getByRole("navigation", { name: "Navegación principal" })
+                  .getByRole("link", { name: "Inicio", exact: true })
+                  .click();
+                assert.equal(
+                  await page
+                    .getByRole("button", { name: "Abrir menú", exact: true })
+                    .getAttribute("aria-expanded"),
+                  "false",
+                );
+                await page
+                  .getByRole("button", { name: "Abrir menú", exact: true })
+                  .click();
+                await page.keyboard.press("Escape");
+                assert.equal(
+                  await page
+                    .getByRole("button", { name: "Abrir menú", exact: true })
+                    .getAttribute("aria-expanded"),
+                  "false",
+                );
+              }
+              await page.setViewportSize({ width: 1440, height: 1000 });
+            }
+            await context.close();
+          }
+          const page = await browser.newPage({
+            viewport: { width: 390, height: 844 },
+          });
+          for (const ruta of [
+            "/",
+            "/reservar",
+            "/mi-turno/recuperar",
+            "/login",
+            `/mi-turno/${acceso.token}`,
+          ]) {
+            await page.goto(baseURL + ruta);
+            if (ruta.startsWith("/mi-turno/") && ruta !== "/mi-turno/recuperar")
+              await page
+                .getByRole("heading", { name: "Próximos turnos", exact: true })
+                .waitFor();
+            assert(
+              await page.evaluate(
+                () => document.documentElement.scrollWidth <= innerWidth,
+              ),
+              `Sin desborde público: ${ruta}`,
+            );
+            await page.screenshot({
+              path: `test-results/publico-${ruta.startsWith("/mi-turno/") && ruta !== "/mi-turno/recuperar" ? "mis-turnos" : ruta.replaceAll("/", "-") || "inicio"}-mobile.png`,
+              fullPage: true,
+            });
+            await page.setViewportSize({ width: 320, height: 800 });
+            assert(
+              await page.evaluate(
+                () => document.documentElement.scrollWidth <= innerWidth,
+              ),
+              `Sin desborde público a 320px: ${ruta}`,
+            );
+            await page.setViewportSize({ width: 390, height: 844 });
+          }
         } finally {
           await browser.close();
         }
