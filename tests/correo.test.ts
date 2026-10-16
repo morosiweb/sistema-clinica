@@ -142,6 +142,8 @@ test("un error de autenticación SMTP devuelve fallo sin exponer credenciales", 
     assert.equal(await enviarCodigo("paciente@example.test", "654321"), false);
     assert.equal(recibidos.length, 0);
     const logs = JSON.stringify(log.mock.calls.map((call) => call.arguments));
+    assert.equal(log.mock.calls[0].arguments.length, 1);
+    assert.match(logs, /proveedor=gmail codigo=EAUTH estadoSmtp=535/);
     assert(!logs.includes("password-incorrecto"));
     assert(!logs.includes("654321"));
     assert(!logs.includes("paciente@example.test"));

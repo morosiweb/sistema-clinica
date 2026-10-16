@@ -185,9 +185,9 @@ export async function enviar(
   } catch (error) {
     // No registrar mensajes del proveedor: pueden contener direcciones,
     // contenido o credenciales. El error público tampoco expone esos datos.
+    const detalle = errorCorreoSeguro(error);
     console.error(
-      `[notificaciones] No se pudo enviar mediante ${proveedor}`,
-      errorCorreoSeguro(error),
+      `[notificaciones] proveedor=${proveedor} codigo=${detalle.codigo} estadoSmtp=${detalle.estadoSmtp ?? "sin_respuesta"}`,
     );
     return false;
   }
