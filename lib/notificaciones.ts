@@ -20,6 +20,109 @@ export function correoConfigurado(): boolean {
   return proveedorCorreo() === "resend" && !!process.env.RESEND_API_KEY?.trim();
 }
 
+function transporteGmail(auth: { user: string; pass: string }) {
+  return nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    auth,
+    connectionTimeout: 5000,
+    greetingTimeout: 5000,
+    socketTimeout: 8000,
+    dnsTimeout: 5000,
+    disableFileAccess: true,
+    disableUrlAccess: true,
+    logger: false,
+    debug: false,
+  });
+}
+
+function errorCorreoSeguro(error: unknown) {
+  const detalle =
+    error && typeof error === "object"
+      ? (error as { code?: unknown; responseCode?: unknown })
+      : {};
+  const codigos = [
+    "EAUTH",
+    "ECONNECTION",
+    "ETIMEDOUT",
+    "ESOCKET",
+    "EENVELOPE",
+    "EMESSAGE",
+    "EDNS",
+    "EPROTOCOL",
+    "ETLS",
+  ];
+  const codigo =
+    typeof detalle.code === "string" && codigos.includes(detalle.code)
+      ? detalle.code
+      : "ENVIO_FALLIDO";
+  return {
+    codigo,
+    estadoSmtp:
+      typeof detalle.responseCode === "number" &&
+      detalle.responseCode >= 400 &&
+      detalle.responseCode <= 599
+        ? detalle.responseCode
+        : null,
+  };
+}
+
+// Exclusivamente para la ruta protegida de administración. No entrega claves,
+// contenido de correos ni respuestas SMTP crudas, y no envía mensajes.
+export async function diagnosticarCorreo() {
+  const proveedor = proveedorCorreo();
+  const auth = credencialesGmail();
+  const configuracion = {
+    proveedor:
+      proveedor === "gmail" || proveedor === "resend"
+        ? proveedor
+        : "desconocido",
+    gmailUsuarioValido: emailSchema.safeParse(process.env.GMAIL_USER).success,
+    gmailClaveCargada: !!process.env.GMAIL_APP_PASSWORD?.replace(/\s/g, ""),
+    correoConfigurado: correoConfigurado(),
+  };
+  if (proveedor !== "gmail")
+    return {
+      ...configuracion,
+      ok: false,
+      mensaje:
+        "Este despliegue no tiene EMAIL_PROVIDER=gmail. Revisá el entorno Production y creá un nuevo despliegue después de guardar las variables.",
+    };
+  if (!auth)
+    return {
+      ...configuracion,
+      ok: false,
+      mensaje:
+        "Falta GMAIL_USER válido o GMAIL_APP_PASSWORD en este despliegue. Revisá Production y volvé a desplegar.",
+    };
+  const transport = transporteGmail(auth);
+  try {
+    await transport.verify();
+    return {
+      ...configuracion,
+      cuenta: auth.user,
+      ok: true,
+      mensaje:
+        "Google aceptó la conexión y las credenciales. No se envió ningún correo; resta comprobar una entrega real.",
+    };
+  } catch (error) {
+    const detalle = errorCorreoSeguro(error);
+    return {
+      ...configuracion,
+      cuenta: auth.user,
+      ok: false,
+      ...detalle,
+      mensaje:
+        detalle.codigo === "EAUTH"
+          ? "Google rechazó las credenciales. Revisá que la contraseña de aplicación corresponda a esta misma cuenta y siga vigente."
+          : "No se pudo completar la conexión SMTP con Google. El código indica el tipo de fallo, sin exponer datos privados.",
+    };
+  } finally {
+    transport.close();
+  }
+}
+
 function urlCompleta(path: string): string {
   const base = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
   return `${base.replace(/\/$/, "")}${path}`;
@@ -54,20 +157,7 @@ export async function enviar(
   try {
     if (proveedor === "gmail") {
       const auth = credencialesGmail()!;
-      const transport = nodemailer.createTransport({
-        host: "smtp.gmail.com",
-        port: 465,
-        secure: true,
-        auth,
-        connectionTimeout: 5000,
-        greetingTimeout: 5000,
-        socketTimeout: 8000,
-        dnsTimeout: 5000,
-        disableFileAccess: true,
-        disableUrlAccess: true,
-        logger: false,
-        debug: false,
-      });
+      const transport = transporteGmail(auth);
       // SMTP no tiene la idempotencia de la API de Resend. Se conserva el
       // bloqueo/estado de cada recordatorio y un Message-ID estable por clave.
       const messageId = clave
@@ -92,10 +182,13 @@ export async function enviar(
     );
     if (error) console.error("[notificaciones] Resend rechazó el envío");
     return !error;
-  } catch {
+  } catch (error) {
     // No registrar mensajes del proveedor: pueden contener direcciones,
     // contenido o credenciales. El error público tampoco expone esos datos.
-    console.error(`[notificaciones] No se pudo enviar mediante ${proveedor}`);
+    console.error(
+      `[notificaciones] No se pudo enviar mediante ${proveedor}`,
+      errorCorreoSeguro(error),
+    );
     return false;
   }
 }

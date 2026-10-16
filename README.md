@@ -41,6 +41,8 @@ La cuenta necesita verificación en dos pasos y permitir contraseñas de aplicac
 
 Los códigos, confirmaciones, recordatorios, cancelaciones y enlaces comparten el proveedor seleccionado. Una configuración incompleta o desconocida bloquea el envío, sin cambiar automáticamente a otro proveedor. Si no se define `EMAIL_PROVIDER`, se conserva Resend. Para volver a Resend, configurar `EMAIL_PROVIDER=resend`, su API key y un remitente de dominio verificado.
 
+Si el envío falla, un administrador puede abrir `/api/admin/correo` con su sesión del sistema. El diagnóstico informa el proveedor del despliegue, si las variables están cargadas y el resultado de conectar/autenticar contra Google, sin enviar correos ni mostrar contraseñas o respuestas SMTP crudas. Está limitado a seis consultas por administrador cada diez minutos. Los demás roles y visitantes no pueden acceder. Las conexiones aceptadas no garantizan entrega: completar después una solicitud real de código.
+
 El proyecto usa Nodemailer 10.1.2 o posterior mediante `overrides`: el peer opcional de Auth.js apunta a versiones anteriores con avisos de seguridad. La autenticación del personal continúa usando credenciales y se valida en las pruebas de integración.
 
 Generar **cada secreto por separado**:

@@ -31,7 +31,7 @@ Los límites deliberados son cinco turnos próximos online, cuatro horas mínima
 
 - Compilación de producción y TypeScript: correctos.
 - ESLint: sin errores ni advertencias.
-- 14 pruebas unitarias/SMTP y 30 de integración: correctas, incluida reserva completa, recuperación frente a fallo de red y navegación por rol en Chromium. El rediseño agrega revisión de pantallas de escritorio y celulares.
+- 15 pruebas unitarias/SMTP y 31 de integración: correctas, incluida reserva completa, recuperación frente a fallo de red y navegación por rol en Chromium. El rediseño agrega revisión de pantallas de escritorio y celulares.
 - Migraciones probadas desde cero y desde datos anteriores en PostgreSQL local temporal; concurrencia real y aislamiento de roles públicos verificados.
 - Las dos migraciones quedaron aplicadas en la base configurada, después de comprobar que coincidía con la baseline, no tenía pacientes/turnos y no presentaba conflictos. Los tres usuarios internos se conservaron. No se cargaron datos de pruebas en esa base ni se enviaron correos reales.
 - Se configuró `DIRECT_URL` local para migraciones por conexión de sesión; la aplicación mantiene su conexión con pool.
@@ -44,3 +44,5 @@ El dominio de la clínica todavía no fue entregado. Resend mantiene el remitent
 También se incorporó Gmail personal como alternativa mediante `EMAIL_PROVIDER=gmail`, `GMAIL_USER` y `GMAIL_APP_PASSWORD`. La contraseña de aplicación se carga como secreto en Vercel y requiere un nuevo despliegue para entrar en vigor. No se guarda en el repositorio. El remitente coincide con la cuenta autenticada y no hereda el remitente de pruebas de Resend.
 
 El canal Gmail fue probado con un receptor SMTP local: envío de códigos, confirmaciones, recordatorios, cancelaciones y enlaces, credenciales inválidas, rechazos y configuración incompleta. La verificación de entrega real a través de Google depende de cargar las tres variables y completar una prueba desde la web. Ver las instrucciones en el README.
+
+El diagnóstico de correo de `/api/admin/correo` requiere administrador activo, limita solicitudes y no expone claves. Verifica configuración y autenticación SMTP sin enviar mensajes. Los fallos de envío registran únicamente proveedor, código técnico permitido y estado SMTP numérico.

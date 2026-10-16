@@ -360,6 +360,21 @@ async function main() {
       horaInicio: "09:15",
     };
     await caso(
+      "el diagnóstico del correo requiere administrador y no expone secretos",
+      async () => {
+        assert.equal((await anon.get("/api/admin/correo")).status(), 401);
+        assert.equal((await sec.get("/api/admin/correo")).status(), 403);
+        assert.equal((await doc.get("/api/admin/correo")).status(), 403);
+        const response = await adm.get("/api/admin/correo");
+        assert.equal(response.status(), 200);
+        const data = await response.json();
+        assert.equal(data.proveedor, "resend");
+        assert.equal(data.ok, false);
+        assert(!JSON.stringify(data).includes(process.env.RESEND_API_KEY!));
+        assert.equal(response.headers()["cache-control"], "private, no-store");
+      },
+    );
+    await caso(
       "reservar con DNI y sin código no entrega un token ni crea un turno",
       async () => {
         const r = await anon.post("/api/publico/reservar", { data: datos });

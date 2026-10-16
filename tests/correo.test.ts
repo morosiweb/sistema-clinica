@@ -11,6 +11,7 @@ import {
   enviarRecordatorioTurno,
   enviarCancelacionTurno,
   enviarLinkPaciente,
+  diagnosticarCorreo,
 } from "../lib/notificaciones";
 
 const variables = [
@@ -147,6 +148,22 @@ test("un error de autenticación SMTP devuelve fallo sin exponer credenciales", 
   } finally {
     log.mock.restore();
   }
+});
+
+test("el diagnóstico verifica Google sin enviar mensajes ni revelar la clave", async () => {
+  const conectado = await diagnosticarCorreo();
+  assert.equal(conectado.ok, true);
+  assert.equal(recibidos.length, 0);
+  process.env.GMAIL_APP_PASSWORD = "clave-invalida";
+  const rechazado = await diagnosticarCorreo();
+  assert.equal(rechazado.ok, false);
+  assert("codigo" in rechazado && rechazado.codigo === "EAUTH");
+  assert(!JSON.stringify(rechazado).includes("clave-invalida"));
+  assert.equal(recibidos.length, 0);
+  process.env.EMAIL_PROVIDER = "resend";
+  const proveedor = await diagnosticarCorreo();
+  assert.equal(proveedor.proveedor, "resend");
+  assert.equal(proveedor.ok, false);
 });
 
 test("las confirmaciones, recordatorios, cancelaciones y enlaces usan Gmail", async () => {
