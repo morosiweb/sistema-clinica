@@ -5,6 +5,7 @@ import { parsePermisos, puedeVer } from "@/lib/pantallas";
 import { PacienteForm } from "@/components/paciente-form";
 import { HistoriaClinica } from "@/components/historia-clinica";
 import { obtenerHistoriaPaciente } from "@/lib/historia";
+import { pacienteSelectSeguro } from "@/lib/pacientes";
 
 export const instant = false;
 
@@ -25,7 +26,7 @@ export default async function EditarPacientePage({
   }
 
   const { id } = await params;
-  const paciente = await prisma.paciente.findUnique({ where: { id } });
+  const paciente = await prisma.paciente.findUnique({ where: { id }, select: pacienteSelectSeguro });
   if (!paciente) notFound();
 
   const historia = await obtenerHistoriaPaciente(id, usuario);

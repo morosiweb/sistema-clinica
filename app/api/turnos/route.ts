@@ -20,7 +20,10 @@ export async function GET(request: NextRequest) {
       ...(medicoId ? { medicoId } : {}),
       ...(esSoloAgenda ? { medicoId: session.user.medicoId ?? "__ninguno__" } : {}),
     },
-    include: { paciente: true, medico: { include: { especialidad: true } } },
+    include: {
+      paciente: { select: { id: true, nombre: true, apellido: true, dni: true, telefono: true } },
+      medico: { include: { especialidad: true } },
+    },
     orderBy: [{ fecha: "asc" }, { horaInicio: "asc" }],
   });
 

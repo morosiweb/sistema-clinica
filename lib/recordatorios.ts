@@ -30,7 +30,10 @@ export async function procesarRecordatorios() {
       recordatorioEnviado: false,
       fecha: { gte: desde, lte: hasta },
     },
-    include: { paciente: true, medico: { include: { especialidad: true } } },
+    include: {
+      paciente: { select: { email: true, nombre: true } },
+      medico: { include: { especialidad: true } },
+    },
   });
 
   let enviados = 0;

@@ -116,7 +116,7 @@ export async function reprogramarTurno(params: {
         estado: "PENDIENTE",
         version: { increment: 1 },
       },
-      include: { medico: { include: { especialidad: true } }, paciente: true },
+      include: { medico: { include: { especialidad: true } } },
     });
 
     await tx.historialTurno.create({

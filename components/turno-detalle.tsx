@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { HistoriaClinica, type EntradaHistoria } from "@/components/historia-clinica";
 import { PagosTurno, type Pago } from "@/components/pagos-turno";
+import { FichaMedica } from "@/components/ficha-medica";
 
 type Historial = { id: string; accion: string; realizadoPor: string; detalle: string | null; fecha: string };
 
@@ -17,7 +18,18 @@ export type TurnoDetalleData = {
   notasSecretaria: string | null;
   notasMedico: string | null;
   version: number;
-  paciente: { nombre: string; apellido: string; dni: string; telefono: string | null };
+  paciente: {
+    id: string;
+    nombre: string;
+    apellido: string;
+    dni: string;
+    telefono: string | null;
+    pesoKg: number | null;
+    alturaCm: number | null;
+    grupoSanguineo: string | null;
+    alergias: string | null;
+    antecedentes: string | null;
+  };
   medico: { nombre: string; apellido: string; especialidad: { nombre: string } };
   historial: Historial[];
 };
@@ -158,6 +170,19 @@ export function TurnoDetalle({
           </h2>
           <HistoriaClinica entradas={historiaPaciente} />
         </div>
+      )}
+
+      {esMedico && (
+        <FichaMedica
+          pacienteId={turno.paciente.id}
+          inicial={{
+            pesoKg: turno.paciente.pesoKg,
+            alturaCm: turno.paciente.alturaCm,
+            grupoSanguineo: turno.paciente.grupoSanguineo,
+            alergias: turno.paciente.alergias,
+            antecedentes: turno.paciente.antecedentes,
+          }}
+        />
       )}
     </div>
   );

@@ -12,7 +12,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   const turno = await prisma.turno.findUnique({
     where: { id },
     include: {
-      paciente: true,
+      paciente: { select: { id: true, nombre: true, apellido: true, dni: true, telefono: true } },
       medico: { include: { especialidad: true } },
       historial: { orderBy: { fecha: "desc" } },
     },
@@ -43,7 +43,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   const actual = await prisma.turno.findUnique({
     where: { id },
-    include: { paciente: true, medico: { include: { especialidad: true } } },
+    include: {
+      paciente: { select: { email: true, nombre: true } },
+      medico: { include: { especialidad: true } },
+    },
   });
   if (!actual) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 

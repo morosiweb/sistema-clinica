@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/api-auth";
 import { pacienteSchema } from "@/lib/validations/paciente";
-import { crearTokenAcceso } from "@/lib/pacientes";
+import { crearTokenAcceso, pacienteSelectSeguro } from "@/lib/pacientes";
 
 export async function GET(request: NextRequest) {
   const { session, response } = await requireSession(["pacientes"]);
@@ -20,6 +20,9 @@ export async function GET(request: NextRequest) {
           ],
         }
       : undefined,
+    // Nunca traer tokenAccesoHash/tokenAccesoEnc acá: esto se devuelve tal
+    // cual al cliente (búsqueda de pacientes en el alta de turno).
+    select: pacienteSelectSeguro,
     orderBy: { apellido: "asc" },
     take: 50,
   });
@@ -56,6 +59,7 @@ export async function POST(request: NextRequest) {
       tokenAccesoHash,
       tokenAccesoEnc,
     },
+    select: pacienteSelectSeguro,
   });
 
   return NextResponse.json(paciente, { status: 201 });

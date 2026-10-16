@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/api-auth";
 import { pacienteSchema } from "@/lib/validations/paciente";
+import { pacienteSelectSeguro } from "@/lib/pacientes";
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { session, response } = await requireSession(["pacientes"]);
   if (!session) return response;
 
   const { id } = await params;
-  const paciente = await prisma.paciente.findUnique({ where: { id } });
+  const paciente = await prisma.paciente.findUnique({ where: { id }, select: pacienteSelectSeguro });
   if (!paciente) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 
   return NextResponse.json(paciente);
@@ -44,6 +45,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       fechaNacimiento: data.fechaNacimiento ? new Date(data.fechaNacimiento) : null,
       obraSocial: data.obraSocial || null,
     },
+    select: pacienteSelectSeguro,
   });
 
   return NextResponse.json(paciente);

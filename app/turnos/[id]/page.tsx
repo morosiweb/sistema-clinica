@@ -27,7 +27,22 @@ export default async function TurnoDetallePage({
   const turno = await prisma.turno.findUnique({
     where: { id },
     include: {
-      paciente: true,
+      // Nunca traer el paciente completo acá: tokenAccesoHash/tokenAccesoEnc
+      // (su link de acceso) no deben llegar al cliente.
+      paciente: {
+        select: {
+          id: true,
+          nombre: true,
+          apellido: true,
+          dni: true,
+          telefono: true,
+          pesoKg: true,
+          alturaCm: true,
+          grupoSanguineo: true,
+          alergias: true,
+          antecedentes: true,
+        },
+      },
       medico: { include: { especialidad: true } },
       historial: { orderBy: { fecha: "desc" } },
       pagos: { orderBy: { fecha: "desc" } },

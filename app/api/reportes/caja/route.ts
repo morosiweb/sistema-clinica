@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
         },
         pagos: { none: {} },
       },
-      include: { paciente: true, medico: true },
+      include: { paciente: { select: { nombre: true, apellido: true } }, medico: true },
       orderBy: { fecha: "desc" },
     }),
   ]);

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { parsePermisos, puedeVer } from "@/lib/pantallas";
+import { pacienteSelectSeguro } from "@/lib/pacientes";
 
 export const instant = false;
 
@@ -33,6 +34,7 @@ export default async function PacientesPage({
           ],
         }
       : undefined,
+    select: pacienteSelectSeguro,
     orderBy: { apellido: "asc" },
     take: 50,
   });

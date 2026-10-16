@@ -27,6 +27,13 @@ model Paciente {
   email           String?
   fechaNacimiento DateTime?
   obraSocial      String?
+  // Ficha médica básica: la carga el médico tratante (o admin), campos
+  // libres sin validación clínica estricta.
+  pesoKg          Float?
+  alturaCm        Float?
+  grupoSanguineo  String?
+  alergias        String?
+  antecedentes    String?
   tokenAccesoHash String    @unique
   tokenAccesoEnc  String
   tokenGeneradoEl DateTime  @default(now())

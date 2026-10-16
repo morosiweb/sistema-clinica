@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
           ? { medicoId: { in: medicoIds } }
           : {}),
     },
-    include: { paciente: true, medico: true },
+    include: { paciente: { select: { nombre: true, apellido: true } }, medico: true },
     orderBy: [{ fecha: "asc" }, { horaInicio: "asc" }],
   });
 

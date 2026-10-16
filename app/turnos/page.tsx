@@ -23,7 +23,7 @@ export default async function TurnosPage() {
   const ultimos = await prisma.turno.findMany({
     orderBy: { createdAt: "desc" },
     take: 5,
-    include: { paciente: true, medico: true },
+    include: { paciente: { select: { nombre: true, apellido: true } }, medico: true },
   });
 
   return (
