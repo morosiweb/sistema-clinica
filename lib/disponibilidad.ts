@@ -63,10 +63,18 @@ export async function obtenerSlotsDisponibles(medicoId: string, fechaISO: string
   const duracion = medico.duracionTurnoMinutos;
   const slots: string[] = [];
 
+  // El horario del médico se guarda como string "wall clock", sin huso
+  // horario propio (misma convención que el resto de la app). Si la fecha
+  // pedida es hoy, no se puede ofrecer un horario que ya pasó.
+  const ahora = new Date();
+  const esHoy = fechaISO === ahora.toISOString().slice(0, 10);
+  const minutoActual = ahora.getUTCHours() * 60 + ahora.getUTCMinutes();
+
   for (const h of horarios) {
     const inicioBloque = minutosDesdeMedianoche(h.horaInicio);
     const finBloque = minutosDesdeMedianoche(h.horaFin);
     for (let t = inicioBloque; t + duracion <= finBloque; t += duracion) {
+      if (esHoy && t <= minutoActual) continue;
       const solapa = ocupados.some((o) => t < o.fin && t + duracion > o.inicio);
       if (!solapa) slots.push(hhmm(t));
     }

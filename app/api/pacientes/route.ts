@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/api-auth";
 import { pacienteSchema } from "@/lib/validations/paciente";
-import { generarToken, hashToken } from "@/lib/token";
+import { crearTokenAcceso } from "@/lib/pacientes";
 
 export async function GET(request: NextRequest) {
   const { session, response } = await requireSession(["pacientes"]);
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Ya existe un paciente con ese DNI" }, { status: 409 });
   }
 
-  const token = generarToken();
+  const { tokenAccesoHash, tokenAccesoEnc } = crearTokenAcceso();
   const paciente = await prisma.paciente.create({
     data: {
       dni: data.dni,
@@ -53,7 +53,8 @@ export async function POST(request: NextRequest) {
       email: data.email || null,
       fechaNacimiento: data.fechaNacimiento ? new Date(data.fechaNacimiento) : null,
       obraSocial: data.obraSocial || null,
-      tokenAccesoHash: hashToken(token),
+      tokenAccesoHash,
+      tokenAccesoEnc,
     },
   });
 

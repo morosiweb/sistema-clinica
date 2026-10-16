@@ -12,7 +12,11 @@ datasource db {
 
 // ===================== PACIENTE (sin login) =====================
 // Se identifica por DNI. Accede a sus turnos mediante un link personal
-// permanente con un token aleatorio; solo se guarda el hash del token.
+// permanente con un token aleatorio. Se guarda un hash (SHA-256) para poder
+// buscar por el token que llega en la URL, y además una copia cifrada
+// (AES-256-GCM) para poder reenviar el MISMO link si el paciente lo pierde,
+// sin tener que invalidarlo ni crear uno nuevo (la contraseña de un usuario
+// interno sí usa bcrypt irreversible porque ahí nunca hace falta reenviarla).
 
 model Paciente {
   id              String    @id @default(cuid())
@@ -24,6 +28,7 @@ model Paciente {
   fechaNacimiento DateTime?
   obraSocial      String?
   tokenAccesoHash String    @unique
+  tokenAccesoEnc  String
   tokenGeneradoEl DateTime  @default(now())
   ausenciasSinAviso Int     @default(0)
   turnos          Turno[]

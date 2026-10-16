@@ -12,9 +12,12 @@ export default async function Home() {
 
   const usuario = await prisma.usuarioInterno.findUnique({
     where: { id: session.user.id },
-    select: { nombre: true, rol: true, permisos: true },
+    select: { nombre: true, rol: true, permisos: true, activo: true },
   });
-  if (!usuario) redirect("/login");
+  // El JWT puede seguir "vigente" aunque el usuario haya sido borrado o
+  // desactivado después de emitido: hay que limpiar la cookie, no solo
+  // redirigir, o /login rebota de nuevo para acá (loop infinito).
+  if (!usuario || !usuario.activo) redirect("/api/auth/sesion-invalida");
 
   const pantallas = pantallasPermitidas(parsePermisos(usuario.permisos), usuario.rol);
 

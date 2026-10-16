@@ -18,6 +18,10 @@ export const authConfig = {
       // requireSession/requireAdmin (lib/api-auth.ts) y devuelven 401/403 JSON.
       if (pathname.startsWith("/api")) return true;
 
+      // Reserva de turno online y gestión del paciente vía su link personal:
+      // son públicas por diseño, el paciente nunca inicia sesión.
+      if (pathname.startsWith("/reservar") || pathname.startsWith("/mi-turno")) return true;
+
       if (!isLoggedIn) return false;
 
       if (pathname.startsWith("/admin") && auth?.user?.rol !== "ADMIN") {

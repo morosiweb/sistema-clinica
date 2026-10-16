@@ -2,16 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/api-auth";
 import { crearTurnoSchema } from "@/lib/validations/turno";
-
-function sumarMinutos(hhmm: string, minutos: number): string {
-  const [h, m] = hhmm.split(":").map(Number);
-  const total = h * 60 + m + minutos;
-  const hh = Math.floor(total / 60)
-    .toString()
-    .padStart(2, "0");
-  const mm = (total % 60).toString().padStart(2, "0");
-  return `${hh}:${mm}`;
-}
+import { crearTurno, HorarioOcupadoError } from "@/lib/turnos";
 
 export async function GET(request: NextRequest) {
   const { session, response } = await requireSession(["turnos", "agenda"]);
@@ -47,53 +38,19 @@ export async function POST(request: NextRequest) {
   }
   const data = parsed.data;
 
-  const medico = await prisma.medico.findUnique({ where: { id: data.medicoId } });
-  if (!medico) return NextResponse.json({ error: "Médico no encontrado" }, { status: 404 });
-
-  const fecha = new Date(`${data.fecha}T00:00:00.000Z`);
-  const horaFin = sumarMinutos(data.horaInicio, medico.duracionTurnoMinutos);
-
   try {
-    const turno = await prisma.$transaction(async (tx) => {
-      const solapado = await tx.turno.findFirst({
-        where: {
-          medicoId: data.medicoId,
-          fecha,
-          estado: { not: "CANCELADO" },
-          horaInicio: { lt: horaFin },
-          horaFin: { gt: data.horaInicio },
-        },
-      });
-      if (solapado) {
-        throw new Error("HORARIO_OCUPADO");
-      }
-
-      const nuevo = await tx.turno.create({
-        data: {
-          pacienteId: data.pacienteId,
-          medicoId: data.medicoId,
-          fecha,
-          horaInicio: data.horaInicio,
-          horaFin,
-          motivoConsulta: data.motivoConsulta || null,
-          canalReserva: "PRESENCIAL",
-        },
-      });
-
-      await tx.historialTurno.create({
-        data: {
-          turnoId: nuevo.id,
-          accion: "CREADO",
-          realizadoPor: session.user.email ?? session.user.id,
-        },
-      });
-
-      return nuevo;
+    const turno = await crearTurno({
+      pacienteId: data.pacienteId,
+      medicoId: data.medicoId,
+      fecha: data.fecha,
+      horaInicio: data.horaInicio,
+      motivoConsulta: data.motivoConsulta,
+      canalReserva: "PRESENCIAL",
+      realizadoPor: session.user.email ?? session.user.id,
     });
-
     return NextResponse.json(turno, { status: 201 });
   } catch (e) {
-    if (e instanceof Error && e.message === "HORARIO_OCUPADO") {
+    if (e instanceof HorarioOcupadoError) {
       return NextResponse.json({ error: "Ese horario ya fue tomado, elegí otro." }, { status: 409 });
     }
     throw e;
