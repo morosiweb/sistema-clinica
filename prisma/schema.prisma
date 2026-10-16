@@ -152,6 +152,7 @@ model Turno {
   // Control de concurrencia optimista: se verifica antes de sobreescribir.
   version         Int              @default(0)
   historial       HistorialTurno[]
+  pagos           Pago[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
@@ -176,6 +177,32 @@ model HistorialTurno {
   fecha        DateTime             @default(now())
 
   @@index([turnoId])
+}
+
+// ===================== FACTURACION =====================
+
+enum MetodoPago {
+  EFECTIVO
+  TRANSFERENCIA
+  TARJETA
+  OTRO
+}
+
+// Un turno puede tener mas de un pago (ej: sena + resto, o una correccion).
+// No hay catalogo de precios: el monto lo carga la secretaria al momento
+// de cobrar, para no forzar una lista de precios que esta fuera de alcance.
+model Pago {
+  id           String     @id @default(cuid())
+  turnoId      String
+  turno        Turno      @relation(fields: [turnoId], references: [id])
+  monto        Decimal    @db.Decimal(10, 2)
+  metodo       MetodoPago @default(EFECTIVO)
+  notas        String?
+  registradoPor String
+  fecha        DateTime   @default(now())
+
+  @@index([turnoId])
+  @@index([fecha])
 }
 
 // ===================== USUARIOS INTERNOS =====================

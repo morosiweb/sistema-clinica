@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { HistoriaClinica, type EntradaHistoria } from "@/components/historia-clinica";
+import { PagosTurno, type Pago } from "@/components/pagos-turno";
 
 type Historial = { id: string; accion: string; realizadoPor: string; detalle: string | null; fecha: string };
 
@@ -28,6 +29,7 @@ export function TurnoDetalle({
   esMedico,
   puedeVerNotasMedico,
   historiaPaciente,
+  pagos,
 }: {
   turno: TurnoDetalleData;
   esMedico: boolean;
@@ -35,6 +37,8 @@ export function TurnoDetalle({
   // clínico, solo sabe que existe (ver lib/historia.ts).
   puedeVerNotasMedico: boolean;
   historiaPaciente: EntradaHistoria[];
+  // undefined para el médico: facturación no es su pantalla.
+  pagos?: Pago[];
 }) {
   const router = useRouter();
   const [estado, setEstado] = useState(turno.estado);
@@ -122,6 +126,8 @@ export function TurnoDetalle({
           </p>
         </div>
       )}
+
+      {pagos && <PagosTurno turnoId={turno.id} pagos={pagos} />}
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 

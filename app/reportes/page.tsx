@@ -1,0 +1,22 @@
+import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { parsePermisos, puedeVer } from "@/lib/pantallas";
+import { ReportesClient } from "@/components/reportes-client";
+
+export const instant = false;
+
+export default async function ReportesPage() {
+  const session = await auth();
+  if (!session?.user) redirect("/login");
+
+  const usuario = await prisma.usuarioInterno.findUnique({
+    where: { id: session.user.id },
+    select: { rol: true, permisos: true },
+  });
+  if (!usuario || !puedeVer(parsePermisos(usuario.permisos), usuario.rol, ["reportes"])) {
+    redirect("/");
+  }
+
+  return <ReportesClient />;
+}

@@ -24,7 +24,7 @@ export const PANTALLAS: readonly Pantalla[] = [
     implementada: true,
   },
   { key: "bloqueos", label: "Licencias", grupo: "Administración", href: "/bloqueos" },
-  { key: "reportes", label: "Reportes", grupo: "Administración", href: "/reportes" },
+  { key: "reportes", label: "Reportes", grupo: "Administración", href: "/reportes", implementada: true },
   { key: "usuarios", label: "Usuarios", grupo: "Administración", href: "/admin/usuarios", implementada: true },
 ] as const;
 
