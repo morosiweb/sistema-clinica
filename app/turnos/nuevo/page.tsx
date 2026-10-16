@@ -6,7 +6,11 @@ import { TurnoForm } from "@/components/turno-form";
 
 export const instant = false;
 
-export default async function NuevoTurnoPage() {
+export default async function NuevoTurnoPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ medicoId?: string; fecha?: string; hora?: string }>;
+}) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
@@ -39,10 +43,12 @@ export default async function NuevoTurnoPage() {
     );
   }
 
+  const prefill = await searchParams;
+
   return (
     <div className="mx-auto max-w-xl px-6 py-10">
       <h1 className="mb-6 text-xl font-semibold">Nuevo turno</h1>
-      <TurnoForm medicos={medicos} />
+      <TurnoForm medicos={medicos} prefill={prefill} />
     </div>
   );
 }

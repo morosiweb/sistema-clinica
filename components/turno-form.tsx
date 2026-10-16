@@ -6,7 +6,13 @@ import { useRouter } from "next/navigation";
 type Paciente = { id: string; nombre: string; apellido: string; dni: string };
 type Medico = { id: string; nombre: string; apellido: string; especialidad: { nombre: string } };
 
-export function TurnoForm({ medicos }: { medicos: Medico[] }) {
+export function TurnoForm({
+  medicos,
+  prefill,
+}: {
+  medicos: Medico[];
+  prefill?: { medicoId?: string; fecha?: string; hora?: string };
+}) {
   const router = useRouter();
   const inputClass =
     "w-full rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-800";
@@ -15,9 +21,9 @@ export function TurnoForm({ medicos }: { medicos: Medico[] }) {
   const [resultados, setResultados] = useState<Paciente[]>([]);
   const [pacienteElegido, setPacienteElegido] = useState<Paciente | null>(null);
 
-  const [medicoId, setMedicoId] = useState(medicos[0]?.id ?? "");
-  const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
-  const [horaInicio, setHoraInicio] = useState("");
+  const [medicoId, setMedicoId] = useState(prefill?.medicoId || medicos[0]?.id || "");
+  const [fecha, setFecha] = useState(() => prefill?.fecha || new Date().toISOString().slice(0, 10));
+  const [horaInicio, setHoraInicio] = useState(prefill?.hora || "");
   const [slots, setSlots] = useState<string[]>([]);
   const [motivoConsulta, setMotivoConsulta] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -35,9 +41,15 @@ export function TurnoForm({ medicos }: { medicos: Medico[] }) {
     return () => clearTimeout(t);
   }, [busquedaPaciente]);
 
+  const [primeraCarga, setPrimeraCarga] = useState(true);
+
   useEffect(() => {
     if (!medicoId || !fecha) return;
-    setHoraInicio("");
+    if (primeraCarga) {
+      setPrimeraCarga(false);
+    } else {
+      setHoraInicio("");
+    }
     fetch(`/api/disponibilidad?medicoId=${medicoId}&fecha=${fecha}`)
       .then((r) => r.json())
       .then((d) => setSlots(d.slots ?? []));
