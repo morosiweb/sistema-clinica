@@ -17,7 +17,7 @@ export default async function EditarUsuarioPage({
     where: { id: session.user.id },
     select: { rol: true },
   });
-  if (!yo || yo.rol !== "ADMIN") redirect("/");
+  if (!yo || yo.rol !== "ADMIN") redirect("/panel");
 
   const { id } = await params;
   const usuario = await prisma.usuarioInterno.findUnique({ where: { id } });

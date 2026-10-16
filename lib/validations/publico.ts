@@ -8,7 +8,7 @@ export const reservaPublicaSchema = z.object({
   nombre: z.string().trim().min(1, "El nombre es obligatorio").max(100),
   apellido: z.string().trim().min(1, "El apellido es obligatorio").max(100),
   telefono: z.string().trim().min(6, "Teléfono inválido").max(30),
-  email: z.string().trim().email("Email inválido").optional().or(z.literal("")),
+  email: z.string().trim().email("Email inválido"),
   motivoConsulta: z.string().trim().max(300).optional().or(z.literal("")),
 });
 

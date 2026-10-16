@@ -15,7 +15,7 @@ export default async function ReportesPage() {
     select: { rol: true, permisos: true },
   });
   if (!usuario || !puedeVer(parsePermisos(usuario.permisos), usuario.rol, ["reportes"])) {
-    redirect("/");
+    redirect("/panel");
   }
 
   return <ReportesClient />;

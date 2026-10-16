@@ -13,7 +13,7 @@ export default async function NuevoUsuarioPage() {
     where: { id: session.user.id },
     select: { rol: true },
   });
-  if (!yo || yo.rol !== "ADMIN") redirect("/");
+  if (!yo || yo.rol !== "ADMIN") redirect("/panel");
 
   const medicosDisponibles = await prisma.medico.findMany({
     where: { usuarioInterno: null },

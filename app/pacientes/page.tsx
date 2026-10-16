@@ -19,7 +19,7 @@ export default async function PacientesPage({
     select: { rol: true, permisos: true },
   });
   if (!usuario || !puedeVer(parsePermisos(usuario.permisos), usuario.rol, ["pacientes"])) {
-    redirect("/");
+    redirect("/panel");
   }
 
   const { q } = await searchParams;

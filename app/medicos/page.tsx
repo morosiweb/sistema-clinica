@@ -15,7 +15,7 @@ export default async function MedicosPage() {
     select: { rol: true, permisos: true },
   });
   if (!usuario || !puedeVer(parsePermisos(usuario.permisos), usuario.rol, ["medicos"])) {
-    redirect("/");
+    redirect("/panel");
   }
 
   const medicos = await prisma.medico.findMany({

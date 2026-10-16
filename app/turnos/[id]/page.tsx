@@ -20,7 +20,7 @@ export default async function TurnoDetallePage({
     select: { rol: true, permisos: true, medicoId: true },
   });
   if (!usuario || !puedeVer(parsePermisos(usuario.permisos), usuario.rol, ["turnos", "agenda"])) {
-    redirect("/");
+    redirect("/panel");
   }
 
   const { id } = await params;

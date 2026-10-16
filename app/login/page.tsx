@@ -21,7 +21,7 @@ export default function LoginPage() {
       setError("Email o contraseña incorrectos.");
       return;
     }
-    router.push("/");
+    router.push("/panel");
     router.refresh();
   }
 

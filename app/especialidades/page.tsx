@@ -15,7 +15,7 @@ export default async function EspecialidadesPage() {
     select: { rol: true, permisos: true },
   });
   if (!usuario || !puedeVer(parsePermisos(usuario.permisos), usuario.rol, ["especialidades"])) {
-    redirect("/");
+    redirect("/panel");
   }
 
   const especialidades = await prisma.especialidad.findMany({ orderBy: { nombre: "asc" } });

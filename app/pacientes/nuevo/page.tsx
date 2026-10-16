@@ -15,7 +15,7 @@ export default async function NuevoPacientePage() {
     select: { rol: true, permisos: true },
   });
   if (!usuario || !puedeVer(parsePermisos(usuario.permisos), usuario.rol, ["pacientes"])) {
-    redirect("/");
+    redirect("/panel");
   }
 
   return (

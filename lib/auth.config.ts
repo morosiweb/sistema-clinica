@@ -11,21 +11,24 @@ export const authConfig = {
       const isOnLogin = pathname.startsWith("/login");
 
       if (isOnLogin) {
-        if (isLoggedIn) return Response.redirect(new URL("/", request.nextUrl));
+        if (isLoggedIn) return Response.redirect(new URL("/panel", request.nextUrl));
         return true;
       }
       // Las rutas /api se dejan pasar: se protegen solas con
       // requireSession/requireAdmin (lib/api-auth.ts) y devuelven 401/403 JSON.
       if (pathname.startsWith("/api")) return true;
 
-      // Reserva de turno online y gestión del paciente vía su link personal:
-      // son públicas por diseño, el paciente nunca inicia sesión.
-      if (pathname.startsWith("/reservar") || pathname.startsWith("/mi-turno")) return true;
+      // Landing pública, reserva de turno online y gestión del paciente vía
+      // su link personal: son públicas por diseño, el paciente nunca inicia
+      // sesión. El panel interno vive aparte, en /panel.
+      if (pathname === "/" || pathname.startsWith("/reservar") || pathname.startsWith("/mi-turno")) {
+        return true;
+      }
 
       if (!isLoggedIn) return false;
 
       if (pathname.startsWith("/admin") && auth?.user?.rol !== "ADMIN") {
-        return Response.redirect(new URL("/", request.nextUrl));
+        return Response.redirect(new URL("/panel", request.nextUrl));
       }
       return true;
     },

@@ -20,7 +20,7 @@ export default async function AgendaPage({
     select: { rol: true, permisos: true, medicoId: true },
   });
   if (!usuario || !puedeVer(parsePermisos(usuario.permisos), usuario.rol, ["agenda"])) {
-    redirect("/");
+    redirect("/panel");
   }
   if (!usuario.medicoId) {
     return (

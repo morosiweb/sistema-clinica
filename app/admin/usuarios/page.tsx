@@ -13,7 +13,7 @@ export default async function UsuariosPage() {
     where: { id: session.user.id },
     select: { rol: true },
   });
-  if (!yo || yo.rol !== "ADMIN") redirect("/");
+  if (!yo || yo.rol !== "ADMIN") redirect("/panel");
 
   const usuarios = await prisma.usuarioInterno.findMany({
     orderBy: { nombre: "asc" },

@@ -15,7 +15,7 @@ export default async function NuevoTurnoPage() {
     select: { rol: true, permisos: true },
   });
   if (!usuario || !puedeVer(parsePermisos(usuario.permisos), usuario.rol, ["turnos"])) {
-    redirect("/");
+    redirect("/panel");
   }
 
   const medicos = await prisma.medico.findMany({

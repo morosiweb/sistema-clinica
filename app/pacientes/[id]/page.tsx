@@ -21,7 +21,7 @@ export default async function EditarPacientePage({
     select: { rol: true, permisos: true, medicoId: true },
   });
   if (!usuario || !puedeVer(parsePermisos(usuario.permisos), usuario.rol, ["pacientes"])) {
-    redirect("/");
+    redirect("/panel");
   }
 
   const { id } = await params;
