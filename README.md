@@ -51,6 +51,8 @@ Generar **cada secreto por separado**:
 node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
 ```
 
+Si el código llega pero confirmar la reserva devuelve un error de operación, revisar que `TOKEN_ENCRYPTION_KEY` esté cargada en **Production** y crear un nuevo despliegue después de guardarla. Los logs distinguen `CIFRADO_SIN_CLAVE`, `CIFRADO_CLAVE_INVALIDA` y `CIFRADO_ENLACE_INCOMPATIBLE` sin mostrar la clave, enlaces ni datos del paciente. El último caso requiere recuperar la clave original; generar otra no permite descifrar los enlaces existentes.
+
 En una base **nueva y vacía**:
 
 ```powershell

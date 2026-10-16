@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { unstable_rethrow } from "next/navigation";
+import { ErrorCifradoToken } from "@/lib/token";
 
 export class ErrorClinica extends Error {
   constructor(
@@ -44,10 +45,15 @@ export function respuestaError(error: unknown) {
       { error: "La referencia indicada no existe o está en uso" },
       { status: 400 },
     );
-  console.error(
-    "Error de operación",
-    error instanceof Error ? error.name : "desconocido",
-  );
+  // Una sola línea: Vercel puede ocultar argumentos adicionales. No registrar
+  // message, stack ni meta: Prisma puede incluir datos de pacientes o consultas.
+  const codigoSeguro =
+    error instanceof ErrorCifradoToken
+      ? error.code
+      : typeof codigo === "string" && /^P\d{4}$/.test(codigo)
+        ? codigo
+        : "OPERACION_FALLIDA";
+  console.error(`Error de operación codigo=${codigoSeguro}`);
   return NextResponse.json(
     { error: "No se pudo completar la operación. Intentá nuevamente." },
     { status: 500 },

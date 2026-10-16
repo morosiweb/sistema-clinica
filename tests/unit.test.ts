@@ -11,11 +11,13 @@ import { dniSchema, emailSchema, paginaSchema } from "../lib/validations/comun";
 import { permisosPorRol, puedeVer } from "../lib/pantallas";
 import { turnoParaInterno, turnoPublicoSelect } from "../lib/turno-dto";
 import { pagoSchema } from "../lib/validations/pago";
+import { respuestaError } from "../lib/errores";
 import {
   generarToken,
   hashToken,
   encriptarToken,
   desencriptarToken,
+  ErrorCifradoToken,
 } from "../lib/token";
 
 test("la agenda interpreta las 14:00 de Buenos Aires como 17:00 UTC", () => {
@@ -90,4 +92,50 @@ test("los enlaces tienen entropía y autenticación del cifrado", () => {
   const corrupto = Buffer.from(enc, "base64");
   corrupto[20] ^= 1;
   assert.throws(() => desencriptarToken(corrupto.toString("base64")));
+});
+
+test("el cifrado distingue configuración ausente, inválida y enlaces incompatibles", () => {
+  const anterior = process.env.TOKEN_ENCRYPTION_KEY;
+  try {
+    delete process.env.TOKEN_ENCRYPTION_KEY;
+    assert.throws(() => encriptarToken("enlace"), {
+      code: "CIFRADO_SIN_CLAVE",
+    });
+    process.env.TOKEN_ENCRYPTION_KEY = "clave-invalida";
+    assert.throws(() => encriptarToken("enlace"), {
+      code: "CIFRADO_CLAVE_INVALIDA",
+    });
+    process.env.TOKEN_ENCRYPTION_KEY = Buffer.alloc(32, 2).toString("base64");
+    const enc = encriptarToken(generarToken());
+    process.env.TOKEN_ENCRYPTION_KEY = Buffer.alloc(32, 3).toString("base64");
+    assert.throws(() => desencriptarToken(enc), {
+      code: "CIFRADO_ENLACE_INCOMPATIBLE",
+    });
+    assert.throws(() => desencriptarToken("corrupto"), ErrorCifradoToken);
+  } finally {
+    if (anterior === undefined) delete process.env.TOKEN_ENCRYPTION_KEY;
+    else process.env.TOKEN_ENCRYPTION_KEY = anterior;
+  }
+});
+
+test("el registro de fallos identifica el cifrado sin publicar secretos ni datos del paciente", async (t) => {
+  const registro = t.mock.method(console, "error", () => {});
+  const respuesta = respuestaError(new ErrorCifradoToken("CIFRADO_SIN_CLAVE"));
+  assert.equal(respuesta.status, 500);
+  assert.deepEqual(await respuesta.json(), {
+    error: "No se pudo completar la operación. Intentá nuevamente.",
+  });
+  assert.deepEqual(registro.mock.calls[0].arguments, [
+    "Error de operación codigo=CIFRADO_SIN_CLAVE",
+  ]);
+  respuestaError(Object.assign(new Error("datos privados"), { code: "P2028" }));
+  assert.deepEqual(registro.mock.calls[1].arguments, [
+    "Error de operación codigo=P2028",
+  ]);
+  respuestaError(
+    Object.assign(new Error("datos privados"), { code: "secreto" }),
+  );
+  assert.deepEqual(registro.mock.calls[2].arguments, [
+    "Error de operación codigo=OPERACION_FALLIDA",
+  ]);
 });

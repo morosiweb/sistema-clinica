@@ -1,5 +1,17 @@
 import crypto from "node:crypto";
 
+export class ErrorCifradoToken extends Error {
+  constructor(
+    public readonly code:
+      | "CIFRADO_SIN_CLAVE"
+      | "CIFRADO_CLAVE_INVALIDA"
+      | "CIFRADO_ENLACE_INCOMPATIBLE",
+  ) {
+    super("No se pudo proteger o recuperar el enlace personal");
+    this.name = "ErrorCifradoToken";
+  }
+}
+
 // Token de acceso personal del paciente (sin login).
 export function generarToken(): string {
   return crypto.randomBytes(32).toString("base64url");
@@ -13,11 +25,9 @@ export function hashToken(token: string): string {
 
 function claveCifrado(): Buffer {
   const raw = process.env.TOKEN_ENCRYPTION_KEY;
-  if (!raw)
-    throw new Error("Falta TOKEN_ENCRYPTION_KEY en las variables de entorno");
+  if (!raw) throw new ErrorCifradoToken("CIFRADO_SIN_CLAVE");
   const key = Buffer.from(raw, "base64");
-  if (key.length !== 32)
-    throw new Error("TOKEN_ENCRYPTION_KEY debe ser 32 bytes en base64");
+  if (key.length !== 32) throw new ErrorCifradoToken("CIFRADO_CLAVE_INVALIDA");
   return key;
 }
 
@@ -32,13 +42,18 @@ export function encriptarToken(token: string): string {
 }
 
 export function desencriptarToken(enc: string): string {
+  const key = claveCifrado();
   const datos = Buffer.from(enc, "base64");
   const iv = datos.subarray(0, 12);
   const tag = datos.subarray(12, 28);
   const cifrado = datos.subarray(28);
-  const decipher = crypto.createDecipheriv("aes-256-gcm", claveCifrado(), iv);
-  decipher.setAuthTag(tag);
-  return Buffer.concat([decipher.update(cifrado), decipher.final()]).toString(
-    "utf8",
-  );
+  try {
+    const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
+    decipher.setAuthTag(tag);
+    return Buffer.concat([decipher.update(cifrado), decipher.final()]).toString(
+      "utf8",
+    );
+  } catch {
+    throw new ErrorCifradoToken("CIFRADO_ENLACE_INCOMPATIBLE");
+  }
 }
