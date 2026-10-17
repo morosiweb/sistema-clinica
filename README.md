@@ -92,6 +92,7 @@ Los límites de solicitudes se guardan en PostgreSQL: tres códigos por DNI en d
 
 ## Operación interna
 
+- Los calendarios de Turnos y Mi agenda consultan cambios automáticamente cada cinco segundos después de finalizar la consulta anterior. Conservan fecha, vista, filtros y turnos visibles durante la actualización. Pausan consultas en pestañas ocultas o sin conexión y sincronizan al volver o reconectar. Ante errores temporales muestran un aviso, conservan la última agenda y reintentan; un rechazo de acceso descarta los datos. Se usa la misma API autenticada con restricciones por rol, sin exponer tablas mediante suscripciones públicas. Esta actualización periódica tiene una demora de unos segundos, no es una conexión de eventos instantáneos.
 - Las fechas de agenda son días civiles; las horas son locales de la clínica. Los instantes reales y recordatorios se convierten usando su zona IANA.
 - Las escrituras de agenda, horarios, licencias y contacto comparten un bloqueo transaccional PostgreSQL. Se comprueban médico activo, vigencia, duración, futuro, turnos y bloqueos en la misma transacción.
 - ADMIN administra todo. SECRETARIA opera pacientes y turnos sin notas médicas. MEDICO accede a su agenda/licencias habilitadas, sus notas y fichas de pacientes relacionados. Los permisos máximos se recortan por rol y se editan en Usuarios. Las bajas afectan páginas y API aun con JWT anterior.

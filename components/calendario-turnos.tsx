@@ -60,6 +60,7 @@ export function CalendarioTurnos({
   if (seleccionados.length) params.set("medicoIds", seleccionados.join(","));
   const recurso = useRecurso<TurnoCal[]>(
     desde ? `/api/turnos/calendario?${params}` : null,
+    5000,
   );
   const turnos = recurso.data || [];
   const columnas = mostrarFiltroMedicos
@@ -129,6 +130,7 @@ export function CalendarioTurnos({
         <label className="flex items-center gap-2 text-xs text-neutral-500">
           Vista
           <select
+            aria-label="Vista"
             value={vista}
             onChange={(e) => setVista(e.target.value as "dia" | "semana")}
           >
@@ -141,6 +143,13 @@ export function CalendarioTurnos({
           Actualizar
         </button>
       </div>
+      <p className="px-4 py-2 text-xs text-neutral-500">
+        {recurso.error
+          ? recurso.data
+            ? "No pudimos actualizar la agenda. Se muestran los últimos datos disponibles; reintentaremos automáticamente."
+            : "La agenda no está actualizada. Usá Actualizar para volver a intentarlo."
+          : "La agenda se actualiza automáticamente cada 5 segundos."}
+      </p>
       {mostrarFiltroMedicos && (
         <div className="calendar-doctors">
           <button onClick={() => setSeleccionados([])}>

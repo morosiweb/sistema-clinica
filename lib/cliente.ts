@@ -1,6 +1,14 @@
 "use client";
 import { useEffect, useReducer, useState, useSyncExternalStore } from "react";
 import { fechaClinica } from "@/lib/fecha";
+class ErrorSolicitud extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+  ) {
+    super(message);
+  }
+}
 export async function fetchJSON<T>(
   url: string,
   opciones?: RequestInit,
@@ -8,12 +16,13 @@ export async function fetchJSON<T>(
   const res = await fetch(url, { cache: "no-store", ...opciones });
   const data = await res.json().catch(() => null);
   if (!res.ok)
-    throw new Error(
+    throw new ErrorSolicitud(
       typeof data?.error === "string"
         ? data.error
         : res.status === 401
           ? "La sesión terminó. Volvé a ingresar."
           : "No se pudo completar la operación.",
+      res.status,
     );
   if (data === null)
     throw new Error("El servidor devolvió una respuesta inválida.");
@@ -24,7 +33,7 @@ export function mensajeError(error: unknown) {
     ? error.message
     : "No se pudo conectar. Intentá nuevamente.";
 }
-export function useRecurso<T>(url: string | null) {
+export function useRecurso<T>(url: string | null, intervaloMs = 0) {
   const [revision, refrescar] = useReducer((v: number) => v + 1, 0);
   const [estado, setEstado] = useState<{
     url: string;
@@ -35,16 +44,76 @@ export function useRecurso<T>(url: string | null) {
   useEffect(() => {
     if (!url) return;
     const controller = new AbortController();
-    fetchJSON<T>(url, { signal: controller.signal })
-      .then((data) => {
-        if (!controller.signal.aborted) setEstado({ url, revision, data });
-      })
-      .catch((error) => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let enCurso = false;
+    let sinAcceso = false;
+    const visible = () =>
+      document.visibilityState !== "hidden" && navigator.onLine;
+    async function cargar() {
+      if (enCurso || sinAcceso || controller.signal.aborted) return;
+      clearTimeout(timer);
+      enCurso = true;
+      try {
+        const data = await fetchJSON<T>(url!, { signal: controller.signal });
         if (!controller.signal.aborted)
-          setEstado({ url, revision, error: mensajeError(error) });
-      });
-    return () => controller.abort();
-  }, [url, revision]);
+          setEstado({ url: url!, revision, data });
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        sinAcceso =
+          error instanceof ErrorSolicitud && [401, 403].includes(error.status);
+        setEstado((anterior) => ({
+          url: url!,
+          revision,
+          // Un fallo temporal no vacía el calendario. Un rechazo de acceso sí.
+          data:
+            intervaloMs > 0 &&
+            !sinAcceso &&
+            anterior?.url === url &&
+            anterior.revision === revision
+              ? anterior.data
+              : undefined,
+          error: mensajeError(error),
+        }));
+      } finally {
+        enCurso = false;
+        if (
+          intervaloMs > 0 &&
+          !sinAcceso &&
+          !controller.signal.aborted &&
+          visible()
+        )
+          timer = setTimeout(cargar, intervaloMs);
+      }
+    }
+    function reanudar() {
+      clearTimeout(timer);
+      if (visible()) void cargar();
+      else if (!navigator.onLine && !sinAcceso)
+        setEstado((anterior) =>
+          anterior?.url === url && anterior.revision === revision
+            ? {
+                ...anterior,
+                error: "Sin conexión. La agenda se actualizará al reconectar.",
+              }
+            : anterior,
+        );
+    }
+    void cargar();
+    if (intervaloMs > 0) {
+      document.addEventListener("visibilitychange", reanudar);
+      window.addEventListener("focus", reanudar);
+      window.addEventListener("online", reanudar);
+      window.addEventListener("offline", reanudar);
+    }
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", reanudar);
+      window.removeEventListener("focus", reanudar);
+      window.removeEventListener("online", reanudar);
+      window.removeEventListener("offline", reanudar);
+    };
+  }, [url, revision, intervaloMs]);
   const listo = estado?.url === url && estado.revision === revision;
   return {
     data: listo ? estado.data : undefined,

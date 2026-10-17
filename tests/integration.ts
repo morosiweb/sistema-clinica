@@ -1282,6 +1282,145 @@ async function main() {
         }
       },
     );
+    await caso(
+      "secretaría y médico reciben reservas, cambios y cancelaciones sin recargar; la agenda recupera fallos y respeta acceso",
+      async () => {
+        const browser = await chromium.launch({ headless: true });
+        try {
+          const secretariaContext = await browser.newContext({
+            storageState: await sec.storageState(),
+          });
+          const medicoContext = await browser.newContext({
+            storageState: await doc.storageState(),
+          });
+          const page = await secretariaContext.newPage();
+          const agenda = await medicoContext.newPage();
+          const aviso = page.locator(".calendar").getByRole("alert");
+          let fallarUnaVez = false;
+          let denegarAcceso = false;
+          await page.route("**/api/turnos/calendario?*", async (route) => {
+            if (denegarAcceso)
+              return route.fulfill({
+                status: 401,
+                json: { error: "La sesión terminó. Volvé a ingresar." },
+              });
+            if (fallarUnaVez) {
+              fallarUnaVez = false;
+              return route.fulfill({
+                status: 503,
+                json: { error: "Fallo temporal de prueba" },
+              });
+            }
+            await route.continue();
+          });
+          await page.goto(baseURL + "/turnos");
+          await page.getByLabel("Fecha", { exact: true }).fill(futuro);
+          await page
+            .getByLabel("Vista", { exact: true })
+            .selectOption("semana");
+          await page.getByLabel("Prueba", { exact: true }).check();
+          await page.locator(".calendar-week").waitFor();
+          await agenda.goto(baseURL + "/agenda");
+          await agenda.getByLabel("Fecha", { exact: true }).fill(futuro);
+          await agenda.locator(".calendar-track").waitFor();
+
+          const solicitud = {
+            ...datos,
+            dni: "57891234",
+            nombre: "Actualizacion",
+            apellido: "Automatica",
+            email: "automatico@example.test",
+            horaInicio: "21:00",
+          };
+          const desafio = await anon.post("/api/publico/verificacion", {
+            data: solicitud,
+          });
+          assert.equal(desafio.status(), 200);
+          const reserva = await anon.post("/api/publico/reservar", {
+            data: {
+              ...solicitud,
+              verificacionId: (await desafio.json()).verificacionId,
+              codigo: codigoPara(solicitud.email),
+            },
+          });
+          assert.equal(reserva.status(), 201);
+          const reservada = await reserva.json();
+          const evento = page
+            .locator(".week-event")
+            .filter({ hasText: "Actualizacion" });
+          const eventoMedico = agenda
+            .locator(".calendar-event")
+            .filter({ hasText: "Actualizacion" });
+          await evento.waitFor({ timeout: 15000 });
+          await eventoMedico.waitFor({ timeout: 15000 });
+          assert((await evento.innerText()).includes("21:00"));
+          assert.equal(
+            await page.getByLabel("Fecha", { exact: true }).inputValue(),
+            futuro,
+          );
+          assert.equal(
+            await page.getByLabel("Vista", { exact: true }).inputValue(),
+            "semana",
+          );
+          assert(await page.getByLabel("Prueba", { exact: true }).isChecked());
+
+          await secretariaContext.setOffline(true);
+          await aviso.filter({ hasText: "Sin conexión" }).waitFor();
+          assert(await evento.isVisible());
+          await secretariaContext.setOffline(false);
+          await aviso.waitFor({ state: "hidden", timeout: 15000 });
+          fallarUnaVez = true;
+          await aviso
+            .filter({ hasText: "Fallo temporal" })
+            .waitFor({ timeout: 15000 });
+          assert(
+            await evento.isVisible(),
+            "Un fallo temporal conserva los turnos visibles",
+          );
+          await aviso.waitFor({ state: "hidden", timeout: 15000 });
+
+          const cambio = await anon.post(
+            `${reservada.linkAcceso.replace("/mi-turno/", "/api/publico/mi-turno/")}/reprogramar`,
+            {
+              data: {
+                turnoId: reservada.turno.id,
+                medicoId: medico.id,
+                fecha: futuro,
+                horaInicio: "21:15",
+                version: 0,
+              },
+            },
+          );
+          assert.equal(cambio.status(), 200);
+          await page
+            .locator(".week-event")
+            .filter({ hasText: /21:15[\s\S]*Actualizacion/ })
+            .waitFor({ timeout: 15000 });
+          await agenda
+            .getByRole("button", { name: /21:15.*Actualizacion/ })
+            .waitFor({ timeout: 15000 });
+          const cancelacion = await anon.post(
+            `${reservada.linkAcceso.replace("/mi-turno/", "/api/publico/mi-turno/")}/cancelar`,
+            { data: { turnoId: reservada.turno.id, version: 1 } },
+          );
+          assert.equal(cancelacion.status(), 200);
+          await evento.waitFor({ state: "hidden", timeout: 15000 });
+          await eventoMedico.waitFor({ state: "hidden", timeout: 15000 });
+          await page.getByText(/Turnos cancelados/).waitFor();
+          denegarAcceso = true;
+          await aviso
+            .filter({ hasText: "La sesión terminó" })
+            .waitFor({ timeout: 15000 });
+          assert.equal(
+            await page.locator(".week-event").count(),
+            0,
+            "Se descartan datos cuando se pierde acceso",
+          );
+        } finally {
+          await browser.close();
+        }
+      },
+    );
     console.log(
       `\n${casos} pruebas de integración correctas. PostgreSQL y correos exclusivamente locales.`,
     );
