@@ -10,7 +10,6 @@ import {
   Stethoscope,
   Layers,
   CalendarOff,
-  ChartNoAxesCombined,
   ShieldCheck,
   LogOut,
   Menu,
@@ -27,7 +26,6 @@ const icons: Record<string, typeof Users> = {
   medicos: Stethoscope,
   especialidades: Layers,
   bloqueos: CalendarOff,
-  reportes: ChartNoAxesCombined,
   usuarios: ShieldCheck,
 };
 const roles: Record<string, string> = {

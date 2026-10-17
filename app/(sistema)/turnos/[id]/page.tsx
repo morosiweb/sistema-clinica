@@ -52,7 +52,6 @@ export default async function TurnoDetallePage({
       },
       medico: { include: { especialidad: true } },
       historial: { orderBy: { fecha: "desc" }, take: 100 },
-      pagos: { orderBy: { fecha: "desc" } },
     },
   });
   if (!turno) notFound();
@@ -73,9 +72,6 @@ export default async function TurnoDetallePage({
   // siquiera en el payload (no solo oculto en la UI).
   const puedeVerNotasMedico =
     usuario.rol === "ADMIN" || turno.medicoId === usuario.medicoId;
-  // Decimal (de los pagos relacionados) no se puede pasar de Server a
-  // Client Component: se descarta acá y se manda aparte ya serializado.
-  const turnoSinPagos = { ...turno, pagos: undefined };
 
   return (
     <div className="record-page">
@@ -83,7 +79,7 @@ export default async function TurnoDetallePage({
       <TurnoDetalle
         key={`${turno.id}:${turno.version}`}
         turno={{
-          ...turnoSinPagos,
+          ...turno,
           notasMedico: puedeVerNotasMedico ? turno.notasMedico : null,
           paciente: {
             ...turno.paciente,
@@ -106,16 +102,6 @@ export default async function TurnoDetallePage({
         esMedico={usuario.rol === "MEDICO"}
         puedeVerNotasMedico={puedeVerNotasMedico}
         historiaPaciente={historiaPaciente}
-        pagos={
-          usuario.rol === "MEDICO"
-            ? undefined
-            : turno.pagos.map((p) => ({
-                ...p,
-                monto: p.monto.toString(),
-                fecha: p.fecha.toISOString(),
-                anuladoEl: p.anuladoEl?.toISOString() || null,
-              }))
-        }
       />
     </div>
   );

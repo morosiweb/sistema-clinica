@@ -873,31 +873,29 @@ async function main() {
       },
     );
     await caso(
-      "anular un cobro conserva monto, autor y motivo; valida su turno",
+      "las rutas de cobros y caja están retiradas para todos los roles",
       async () => {
-        let r = await sec.post(`/api/turnos/${nota.id}/pagos`, {
-          data: { monto: 100.5, metodo: "EFECTIVO" },
-        });
-        assert.equal(r.status(), 201);
-        const pago = await r.json();
-        assert.equal(
-          (
-            await sec.delete(`/api/turnos/${reservado}/pagos/${pago.id}`, {
-              data: { motivo: "Corrección de prueba" },
-            })
-          ).status(),
-          409,
-        );
-        r = await sec.delete(`/api/turnos/${nota.id}/pagos/${pago.id}`, {
-          data: { motivo: "Corrección de prueba" },
-        });
-        assert.equal(r.status(), 200);
-        const guardado = await prisma.pago.findUniqueOrThrow({
-          where: { id: pago.id },
-        });
-        assert.equal(Number(guardado.monto), 100.5);
-        assert(guardado.anuladoEl);
-        assert.equal(guardado.anuladoPor, secretaria.id);
+        for (const api of [anon, sec, doc, adm]) {
+          assert.equal((await api.get("/api/reportes/caja")).status(), 404);
+          assert.equal(
+            (
+              await api.post(`/api/turnos/${nota.id}/pagos`, {
+                data: { monto: 100.5, metodo: "EFECTIVO" },
+              })
+            ).status(),
+            404,
+          );
+          assert.equal(
+            (
+              await api.delete(`/api/turnos/${nota.id}/pagos/retirado`, {
+                data: { motivo: "Ruta retirada" },
+              })
+            ).status(),
+            404,
+          );
+        }
+        assert.equal(await prisma.pago.count(), 0);
+        assert.equal((await adm.get("/reportes")).status(), 404);
       },
     );
     await caso(
@@ -1133,11 +1131,15 @@ async function main() {
                 "/admin/usuarios/nuevo",
                 `/admin/usuarios/${doctor.id}`,
                 "/turnos/nuevo",
-                "/reportes",
+                `/turnos/${nota.id}`,
                 "/bloqueos",
               ],
             ],
-            ["secretaria", sec, ["/panel", "/turnos", "/pacientes"]],
+            [
+              "secretaria",
+              sec,
+              ["/panel", "/turnos", `/turnos/${nota.id}`, "/pacientes"],
+            ],
             [
               "medico",
               doc,
@@ -1154,6 +1156,24 @@ async function main() {
               assert.equal(response?.status(), 200, `${perfil} ${ruta}`);
               await page.locator(".staff-content").waitFor();
               assert.equal(new URL(page.url()).pathname, ruta);
+              assert.equal(
+                await page
+                  .getByRole("link", { name: "Reportes", exact: true })
+                  .count(),
+                0,
+              );
+              assert.equal(
+                await page
+                  .getByRole("heading", { name: "Cobros", exact: true })
+                  .count(),
+                0,
+              );
+              assert.equal(
+                await page
+                  .getByRole("button", { name: "Registrar cobro", exact: true })
+                  .count(),
+                0,
+              );
               if (ruta === "/panel") {
                 const nav = page.getByRole("navigation", {
                   name: "Navegación principal",

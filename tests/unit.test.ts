@@ -10,7 +10,6 @@ import {
 import { dniSchema, emailSchema, paginaSchema } from "../lib/validations/comun";
 import { permisosPorRol, puedeVer } from "../lib/pantallas";
 import { turnoParaInterno, turnoPublicoSelect } from "../lib/turno-dto";
-import { pagoSchema } from "../lib/validations/pago";
 import { respuestaError } from "../lib/errores";
 import {
   generarToken,
@@ -35,7 +34,7 @@ test("la agenda interpreta las 14:00 de Buenos Aires como 17:00 UTC", () => {
 test("el día local no cambia a medianoche UTC", () => {
   assert.equal(fechaClinica(new Date("2026-10-17T01:00:00Z")), "2026-10-16");
 });
-test("los cierres de caja abarcan el día civil completo", () => {
+test("los rangos de fechas abarcan el día civil completo", () => {
   const r = rangoInstantes("2026-10-16", "2026-10-16");
   assert.equal(r.gte.toISOString(), "2026-10-16T03:00:00.000Z");
   assert.equal(r.lt.toISOString(), "2026-10-17T03:00:00.000Z");
@@ -52,7 +51,7 @@ test("los DNI y emails tienen representación única", () => {
   assert.equal(emailSchema.parse(" Admin@Example.test "), "admin@example.test");
   assert(!paginaSchema.safeParse("1.5").success);
 });
-test("un médico nunca hereda permisos de cobro o administración", () => {
+test("un médico nunca hereda permisos de administración", () => {
   assert(!puedeVer(null, "MEDICO", ["turnos", "medicos", "usuarios"]));
   assert(puedeVer(null, "MEDICO", ["agenda"]));
   assert(!puedeVer(["usuarios"], "SECRETARIA", ["usuarios"]));
@@ -74,13 +73,6 @@ test("la serialización de turnos respeta notas clínicas", () => {
   );
   assert(!("notasMedico" in turnoPublicoSelect));
   assert(!("notasSecretaria" in turnoPublicoSelect));
-});
-test("los cobros respetan centavos y el límite de la base", () => {
-  assert(pagoSchema.safeParse({ monto: 123.45, metodo: "EFECTIVO" }).success);
-  assert(!pagoSchema.safeParse({ monto: 0.001, metodo: "EFECTIVO" }).success);
-  assert(
-    !pagoSchema.safeParse({ monto: 100000000, metodo: "EFECTIVO" }).success,
-  );
 });
 test("los enlaces tienen entropía y autenticación del cifrado", () => {
   process.env.TOKEN_ENCRYPTION_KEY = Buffer.alloc(32, 1).toString("base64");

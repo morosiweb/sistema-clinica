@@ -1,6 +1,6 @@
 # Sistema Clínica
 
-Turnos, agenda médica, ficha e historia clínica, licencias y caja. Next.js 16, React 19, Prisma 7 y PostgreSQL. Los pacientes reservan y gestionan turnos **sin cuenta ni contraseña**, con un código por email y un enlace personal.
+Turnos, agenda médica, ficha e historia clínica y licencias. Next.js 16, React 19, Prisma 7 y PostgreSQL. Los pacientes reservan y gestionan turnos **sin cuenta ni contraseña**, con un código por email y un enlace personal.
 
 ## Instalación
 
@@ -92,15 +92,16 @@ Los límites de solicitudes se guardan en PostgreSQL: tres códigos por DNI en d
 
 ## Operación interna
 
-- Las fechas de agenda son días civiles; las horas son locales de la clínica. Los instantes reales, recordatorios y cierres de caja se convierten usando su zona IANA.
+- Las fechas de agenda son días civiles; las horas son locales de la clínica. Los instantes reales y recordatorios se convierten usando su zona IANA.
 - Las escrituras de agenda, horarios, licencias y contacto comparten un bloqueo transaccional PostgreSQL. Se comprueban médico activo, vigencia, duración, futuro, turnos y bloqueos en la misma transacción.
-- ADMIN administra todo. SECRETARIA opera pacientes, turnos y caja sin notas médicas. MEDICO accede a su agenda/licencias habilitadas, sus notas y fichas de pacientes relacionados. Los permisos máximos se recortan por rol y se editan en Usuarios. Las bajas afectan páginas y API aun con JWT anterior.
+- ADMIN administra todo. SECRETARIA opera pacientes y turnos sin notas médicas. MEDICO accede a su agenda/licencias habilitadas, sus notas y fichas de pacientes relacionados. Los permisos máximos se recortan por rol y se editan en Usuarios. Las bajas afectan páginas y API aun con JWT anterior.
 - La ficha y las notas conservan revisiones con autor, fecha y contenido anterior/posterior. La versión de ficha evita sobrescrituras concurrentes. Una visita retrospectiva exige relación previa y fecha no futura: secretaría debe asignar la primera consulta mediante un turno.
 - Las licencias solicitadas por médicos quedan pendientes. Secretaría/admin aprueba o rechaza; antes de aprobar hay que resolver las citas de esa franja. Los bloques semanales admiten vigencia y duración propia y rechazan superposiciones.
 - AUSENTE actualiza el contador del paciente. No se pueden marcar citas futuras atendidas/ausentes, y reactivar un cancelado exige disponibilidad nuevamente.
-- Anular un cobro conserva el original y exige motivo, actor y fecha. Caja registra la contrapartida en la fecha de anulación, sin borrar el ingreso del cierre original.
 
 Las tablas internas se consultan únicamente desde el backend. La migración habilita RLS y revoca acceso de los roles públicos de Supabase (`anon` y `authenticated`) si existen; el usuario propietario usado por Prisma conserva su operación.
+
+El módulo de cobros se retiró del sistema: no hay formularios, permisos de reportes ni rutas para registrar/anular pagos o consultar caja. La tabla histórica `Pago` y las migraciones anteriores se conservan para evitar eliminar registros en instalaciones existentes.
 
 ## Recordatorios
 
@@ -116,6 +117,6 @@ npx playwright install chromium
 npm run test:integration
 ```
 
-Las pruebas de integración inician PostgreSQL temporal **local** y un receptor local de correos. Reemplazan las variables del proceso de prueba: no usan la base del `.env` ni envían correos reales. Incluyen migraciones desde cero y datos previos, códigos, roles, concurrencia real, ficha, licencias, cobros, fallos de correo y reserva completa en Chromium. `npm test` también inicia un receptor SMTP local para comprobar el canal Gmail, autenticación, rechazos, remitente y contenido de los distintos mensajes, sin conectarse a Google. Al terminar detienen servicios y eliminan únicamente su directorio temporal.
+Las pruebas de integración inician PostgreSQL temporal **local** y un receptor local de correos. Reemplazan las variables del proceso de prueba: no usan la base del `.env` ni envían correos reales. Incluyen migraciones desde cero y datos previos, códigos, roles, concurrencia real, ficha, licencias, retiro de rutas de cobros, fallos de correo y reserva completa en Chromium. `npm test` también inicia un receptor SMTP local para comprobar el canal Gmail, autenticación, rechazos, remitente y contenido de los distintos mensajes, sin conectarse a Google. Al terminar detienen servicios y eliminan únicamente su directorio temporal.
 
 Se usa [embedded-postgres](https://github.com/leinelissen/embedded-postgres) como dependencia exclusiva de desarrollo para no exigir Docker. Ejecutar las pruebas con un usuario normal; no crean usuarios del sistema. Ver también [el registro de correcciones](docs/CORRECCIONES.md).

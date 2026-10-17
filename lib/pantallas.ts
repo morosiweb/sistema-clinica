@@ -55,13 +55,6 @@ export const PANTALLAS: readonly Pantalla[] = [
     implementada: true,
   },
   {
-    key: "reportes",
-    label: "Reportes",
-    grupo: "Administración",
-    href: "/reportes",
-    implementada: true,
-  },
-  {
     key: "usuarios",
     label: "Usuarios",
     grupo: "Administración",
@@ -125,12 +118,5 @@ export function primerHrefPermitido(
 export function permisosPorRol(rol: RolInterno): string[] {
   if (rol === "ADMIN") return PANTALLAS.map((p) => p.key);
   if (rol === "MEDICO") return ["agenda", "bloqueos"];
-  return [
-    "pacientes",
-    "turnos",
-    "medicos",
-    "especialidades",
-    "bloqueos",
-    "reportes",
-  ];
+  return ["pacientes", "turnos", "medicos", "especialidades", "bloqueos"];
 }
