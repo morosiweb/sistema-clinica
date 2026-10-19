@@ -46,7 +46,7 @@ async function GETHandler(request: NextRequest) {
           : {}),
     },
     include: {
-      paciente: { select: { nombre: true, apellido: true } },
+      paciente: { select: { nombre: true, apellido: true, telefono: true } },
       medico: true,
     },
     orderBy: [{ fecha: "asc" }, { horaInicio: "asc" }],
@@ -62,6 +62,10 @@ async function GETHandler(request: NextRequest) {
       horaInicio: t.horaInicio,
       horaFin: t.horaFin,
       estado: t.estado,
+      version: t.version,
+      canalReserva: t.canalReserva,
+      medicoColor: t.medico.color,
+      pacienteTelefono: t.paciente.telefono,
     })),
   );
 }

@@ -5,7 +5,10 @@ import { requireSession } from "@/lib/api-auth";
 import { turnoParaInterno } from "@/lib/turno-dto";
 import { fechaSchema } from "@/lib/validations/comun";
 import { crearTurnoSchema } from "@/lib/validations/turno";
-import { crearTurno, HorarioOcupadoError } from "@/lib/turnos";
+import { crearTurnoEnTx, HorarioOcupadoError } from "@/lib/turnos";
+import { crearTokenAcceso } from "@/lib/pacientes";
+import { transaccionAgenda } from "@/lib/transaccion";
+import { ErrorClinica } from "@/lib/errores";
 
 async function GETHandler(request: NextRequest) {
   const { session, response } = await requireSession(["turnos", "agenda"]);
@@ -62,14 +65,46 @@ async function POSTHandler(request: NextRequest) {
   const data = parsed.data;
 
   try {
-    const turno = await crearTurno({
-      pacienteId: data.pacienteId,
-      medicoId: data.medicoId,
-      fecha: data.fecha,
-      horaInicio: data.horaInicio,
-      motivoConsulta: data.motivoConsulta,
-      canalReserva: "PRESENCIAL",
-      realizadoPor: session.user.email ?? session.user.id,
+    const turno = await transaccionAgenda(async (tx) => {
+      let pacienteId = data.pacienteId;
+      if (data.pacienteNuevo) {
+        const p = data.pacienteNuevo;
+        if (
+          await tx.paciente.findUnique({
+            where: { dni: p.dni },
+            select: { id: true },
+          })
+        )
+          throw new ErrorClinica(
+            "Ya existe un paciente con ese DNI. Buscalo como paciente existente.",
+            409,
+          );
+        const { tokenAccesoHash, tokenAccesoEnc } = crearTokenAcceso();
+        const paciente = await tx.paciente.create({
+          data: {
+            ...p,
+            telefono: p.telefono || null,
+            email: p.email || null,
+            fechaNacimiento: p.fechaNacimiento
+              ? new Date(`${p.fechaNacimiento}T00:00:00Z`)
+              : null,
+            obraSocial: p.obraSocial || null,
+            tokenAccesoHash,
+            tokenAccesoEnc,
+          },
+          select: { id: true },
+        });
+        pacienteId = paciente.id;
+      }
+      return crearTurnoEnTx(tx, {
+        pacienteId: pacienteId!,
+        medicoId: data.medicoId,
+        fecha: data.fecha,
+        horaInicio: data.horaInicio,
+        motivoConsulta: data.motivoConsulta,
+        canalReserva: "PRESENCIAL",
+        realizadoPor: session.user.email ?? session.user.id,
+      });
     });
     return NextResponse.json(turno, { status: 201 });
   } catch (e) {

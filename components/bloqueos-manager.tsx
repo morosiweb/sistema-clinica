@@ -14,23 +14,33 @@ type Bloqueo = {
 export function BloqueosManager({
   medicos,
   esMedico,
+  medicoFijo,
 }: {
   medicos: Medico[];
   esMedico: boolean;
+  medicoFijo?: string;
 }) {
   const hoy = useHoy();
   const [medicoId, setMedico] = useState(medicos[0]?.id || "");
   const [dia, setDia] = useState("");
+  const [tipo, setTipo] = useState<"dia" | "horas" | "vacaciones">("dia");
+  const [hasta, setHasta] = useState("");
+  const [aviso, setAviso] = useState("");
   const [inicio, setInicio] = useState("");
   const [fin, setFin] = useState("");
   const [motivo, setMotivo] = useState("");
   const [error, setError] = useState("");
   const [ocupado, setOcupado] = useState(false);
-  const recurso = useRecurso<Bloqueo[]>("/api/bloqueos");
+  const recurso = useRecurso<Bloqueo[]>(
+    medicoFijo
+      ? `/api/bloqueos?medicoId=${encodeURIComponent(medicoFijo)}`
+      : "/api/bloqueos",
+  );
   async function crear(e: React.FormEvent) {
     e.preventDefault();
     setOcupado(true);
     setError("");
+    setAviso("");
     try {
       await fetchJSON("/api/bloqueos", {
         method: "POST",
@@ -38,12 +48,19 @@ export function BloqueosManager({
         body: JSON.stringify({
           medicoId,
           fecha: dia || hoy,
-          horaInicio: inicio,
-          horaFin: fin,
-          motivo,
+          ...(tipo === "vacaciones" ? { fechaHasta: hasta || dia || hoy } : {}),
+          horaInicio: tipo === "horas" ? inicio : "",
+          horaFin: tipo === "horas" ? fin : "",
+          motivo:
+            motivo || (tipo === "vacaciones" ? "Vacaciones" : "Tiempo libre"),
         }),
       });
       setMotivo("");
+      setAviso(
+        esMedico
+          ? "Solicitud registrada para aprobación."
+          : "Ausencia guardada. Esos horarios ya no se pueden reservar.",
+      );
       recurso.refrescar();
     } catch (e) {
       setError(mensajeError(e));
@@ -80,11 +97,25 @@ export function BloqueosManager({
         className="grid gap-3 rounded border p-4 sm:grid-cols-2"
       >
         <label className="text-sm">
+          Tipo de ausencia
+          <select
+            aria-label="Tipo de ausencia"
+            className={input}
+            value={tipo}
+            onChange={(e) => setTipo(e.target.value as typeof tipo)}
+          >
+            <option value="dia">Día completo</option>
+            <option value="horas">Tiempo libre por horas</option>
+            <option value="vacaciones">Vacaciones (varios días)</option>
+          </select>
+        </label>
+        <label className="text-sm">
           Médico
           <select
             required
             className={input}
             value={medicoId}
+            disabled={!!medicoFijo}
             onChange={(e) => setMedico(e.target.value)}
           >
             {medicos.map((m) => (
@@ -105,31 +136,47 @@ export function BloqueosManager({
             onChange={(e) => setDia(e.target.value)}
           />
         </label>
-        <label className="text-sm">
-          Desde (opcional)
-          <input
-            type="time"
-            className={input}
-            value={inicio}
-            onChange={(e) => setInicio(e.target.value)}
-          />
-        </label>
-        <label className="text-sm">
-          Hasta (opcional)
-          <input
-            type="time"
-            className={input}
-            value={fin}
-            onChange={(e) => setFin(e.target.value)}
-          />
-        </label>
-        <p className="text-xs sm:col-span-2">
-          Dejá ambas horas vacías para bloquear todo el día.
-        </p>
+        {tipo === "vacaciones" && (
+          <label className="text-sm">
+            Último día de vacaciones
+            <input
+              required
+              aria-label="Último día de vacaciones"
+              type="date"
+              min={dia || hoy}
+              className={input}
+              value={hasta || dia || hoy}
+              onChange={(e) => setHasta(e.target.value)}
+            />
+          </label>
+        )}
+        {tipo === "horas" && (
+          <>
+            <label className="text-sm">
+              Hora de inicio
+              <input
+                type="time"
+                required
+                className={input}
+                value={inicio}
+                onChange={(e) => setInicio(e.target.value)}
+              />
+            </label>
+            <label className="text-sm">
+              Hora de fin
+              <input
+                type="time"
+                required
+                className={input}
+                value={fin}
+                onChange={(e) => setFin(e.target.value)}
+              />
+            </label>
+          </>
+        )}
         <label className="text-sm sm:col-span-2">
           Motivo
           <input
-            required
             minLength={3}
             maxLength={300}
             className={input}
@@ -144,6 +191,11 @@ export function BloqueosManager({
           {esMedico ? "Solicitar licencia" : "Registrar licencia"}
         </button>
       </form>
+      {aviso && (
+        <p role="status" className="notice">
+          {aviso}
+        </p>
+      )}
       {(error || recurso.error) && (
         <p role="alert" className="text-sm text-red-600">
           {error || recurso.error}
@@ -176,6 +228,28 @@ export function BloqueosManager({
                 Rechazar
               </button>
             </div>
+          )}
+          {!esMedico && b.estado === "APROBADO" && (
+            <button
+              disabled={ocupado}
+              className="underline"
+              onClick={async () => {
+                setOcupado(true);
+                setError("");
+                try {
+                  await fetchJSON(`/api/bloqueos/${b.id}`, {
+                    method: "DELETE",
+                  });
+                  recurso.refrescar();
+                } catch (e) {
+                  setError(mensajeError(e));
+                } finally {
+                  setOcupado(false);
+                }
+              }}
+            >
+              Quitar bloqueo y habilitar horarios
+            </button>
           )}
         </article>
       ))}

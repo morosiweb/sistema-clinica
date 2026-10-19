@@ -6,6 +6,7 @@ export async function validarBloqueo(
   b: {
     medicoId: string;
     fecha: string;
+    fechaHasta?: string;
     horaInicio?: string | null;
     horaFin?: string | null;
   },
@@ -17,7 +18,9 @@ export async function validarBloqueo(
   const turno = await tx.turno.findFirst({
     where: {
       medicoId: b.medicoId,
-      fecha: fechaDB(b.fecha),
+      fecha: b.fechaHasta
+        ? { gte: fechaDB(b.fecha), lte: fechaDB(b.fechaHasta) }
+        : fechaDB(b.fecha),
       estado: { in: ["PENDIENTE", "CONFIRMADO"] },
       horaInicio: { lt: b.horaFin || "24:00" },
       horaFin: { gt: b.horaInicio || "00:00" },

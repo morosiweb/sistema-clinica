@@ -64,6 +64,7 @@ export async function crearTurnoEnTx(tx: Transaccion, p: Reserva) {
       ...slot,
       motivoConsulta: p.motivoConsulta || null,
       canalReserva: p.canalReserva,
+      estado: p.canalReserva === "ONLINE" ? "PENDIENTE" : "CONFIRMADO",
       historial: { create: { accion: "CREADO", realizadoPor: p.realizadoPor } },
     },
   });

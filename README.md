@@ -65,6 +65,17 @@ El seed crea el primer administrador y muestra su contraseña una vez. Admite `S
 
 Secretaría y administración también pueden crear el acceso de un médico desde **Médicos → perfil → Acceso al panel**. Ingresan el email que usará como usuario y escriben y confirman una contraseña de al menos 8 caracteres. La contraseña elegida se guarda como hash bcrypt y los datos se pueden copiar al terminar para entregárselos al médico; no se genera una contraseña automática. La cuenta queda vinculada al médico con rol MEDICO y acceso a su agenda y licencias. No requiere migraciones. Los médicos inactivos no pueden recibir nuevas cuentas; si ya existe una cuenta vinculada, se muestra su estado sin reemplazarla. Los cambios de contraseña o reactivaciones siguen a cargo del administrador en Usuarios.
 
+## Cambios del panel del 19/10/2026
+
+- Tipografía más grande y botón Volver atrás en las pantallas internas y del paciente. Inicio conserva únicamente la tarjeta Turnos de hoy.
+- La ficha del paciente separa el historial completo de turnos (con paginación) de las notas y archivos compartidos. Secretaría y administración pueden agregar y consultar; los médicos acceden a pacientes con los que tienen un turno no cancelado y mientras su ficha profesional esté activa. Las notas médicas privadas anteriores conservan sus permisos.
+- Los archivos se guardan permanentemente como datos binarios en PostgreSQL, junto con paciente, autor, nombre, tamaño y fecha. No dependen del disco temporal del despliegue. Se descargan desde una ruta autenticada y privada que comprueba paciente y rol en cada acceso. Se admiten PDF, PNG/JPG/WebP, DOCX, XLSX y TXT de hasta 3 MB por archivo; se comprueba tamaño, extensión y firma básica del formato. Las copias de seguridad de la base deben incluir estas tablas y su contenido.
+- Cada médico tiene un color persistente y editable desde su ficha. Las reservas online pendientes aparecen grises con acciones de confirmación/cancelación para secretaría. Al confirmar usan el color del médico; al cancelar se muestra el teléfono en la tarjeta y en un aviso inmediato. Las acciones comprueban la versión del turno para evitar sobrescribir cambios de otra sesión.
+- Nuevo turno permite seleccionar un paciente existente o darlo de alta en el mismo formulario. Paciente y turno se crean en una sola transacción; si el horario dejó de estar disponible, no se guarda un paciente incompleto. Los turnos del personal se guardan confirmados.
+- Desde Médicos → perfil → Vacaciones y tiempos libres se bloquean días completos, franjas horarias o un período de vacaciones. El período se guarda completo o se rechaza si hay citas reservadas; nunca se cancelan citas automáticamente. Secretarías con acceso a Médicos pueden administrar estos bloqueos. Quitar un bloqueo conserva su registro como rechazado y vuelve a habilitar los horarios.
+
+Esta versión requiere aplicar `202610190001_panel_secretaria` con `npm run db:migrate` **antes de publicarla**. Es una migración aditiva: asigna colores a los médicos existentes y crea las tablas de notas y archivos, protegidas con RLS y sin acceso de los roles públicos de Supabase. No elimina registros ni modifica las contraseñas existentes.
+
 ## Actualizar una base anterior sin migraciones
 
 Respaldar y comprobar que las tablas coincidan con el esquema inicial. No ejecutar `migrate reset` ni borrar tablas.

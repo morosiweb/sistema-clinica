@@ -5,6 +5,7 @@ import { parsePermisos, puedeVer } from "@/lib/pantallas";
 import { MedicoForm } from "@/components/medico-form";
 import { HorarioManager } from "@/components/horario-manager";
 import { MedicoAcceso } from "@/components/medico-acceso";
+import { BloqueosManager } from "@/components/bloqueos-manager";
 
 export const instant = false;
 
@@ -60,6 +61,7 @@ export default async function EditarMedicoPage({
           email: medico.email ?? "",
           duracionTurnoMinutos: medico.duracionTurnoMinutos,
           activo: medico.activo,
+          color: medico.color,
         }}
       />
 
@@ -70,6 +72,19 @@ export default async function EditarMedicoPage({
         activo={medico.activo}
         cuenta={medico.usuarioInterno}
       />
+
+      <div className="mt-10">
+        <h2 className="mb-4 text-lg font-semibold">
+          Vacaciones y tiempos libres
+        </h2>
+        <BloqueosManager
+          medicos={[
+            { id: medico.id, nombre: medico.nombre, apellido: medico.apellido },
+          ]}
+          esMedico={false}
+          medicoFijo={medico.id}
+        />
+      </div>
 
       <div className="mt-10">
         <h2 className="mb-4 text-lg font-semibold">Horarios semanales</h2>

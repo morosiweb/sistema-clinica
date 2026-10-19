@@ -10,6 +10,10 @@ export const medicoSchema = z.object({
   email: emailSchema.optional().or(z.literal("")),
   duracionTurnoMinutos: z.coerce.number().int().min(5).max(240),
   activo: z.boolean(),
+  color: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/, "Elegí un color válido")
+    .optional(),
 });
 
 export type MedicoInput = z.infer<typeof medicoSchema>;

@@ -12,6 +12,7 @@ export type MedicoFormValues = {
   email: string;
   duracionTurnoMinutos: number;
   activo: boolean;
+  color?: string;
 };
 
 export function MedicoForm({
@@ -210,6 +211,19 @@ export function MedicoForm({
           }
         />
         Activo
+      </label>
+
+      <label className="flex items-center gap-3 text-sm">
+        Color en el calendario
+        <input
+          type="color"
+          aria-label="Color del médico"
+          value={valores.color || "#0f766e"}
+          onChange={(e) => setValores((v) => ({ ...v, color: e.target.value }))}
+        />
+        {!valores.color && (
+          <span>Se asigna un color disponible al guardar.</span>
+        )}
       </label>
 
       {error && <p className="text-sm text-red-600">{error}</p>}

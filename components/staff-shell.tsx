@@ -18,6 +18,7 @@ import {
   HeartPulse,
 } from "lucide-react";
 import { Brand } from "@/components/brand";
+import { Volver } from "@/components/volver";
 
 const icons: Record<string, typeof Users> = {
   pacientes: Users,
@@ -197,6 +198,7 @@ export function StaffShell({
           </span>
         </header>
         <main id="contenido" className="staff-content">
+          <Volver />
           {children}
         </main>
         <footer className="staff-footer">

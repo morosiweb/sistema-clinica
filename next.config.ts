@@ -23,6 +23,8 @@ const nextConfig: NextConfig = {
   },
   cacheComponents: true,
   partialPrefetching: true,
+  // El caché persistente conservaba una hoja CSS anterior después de editarla.
+  experimental: { turbopackFileSystemCacheForBuild: false },
   turbopack: {
     rules: {
       "*.css": {

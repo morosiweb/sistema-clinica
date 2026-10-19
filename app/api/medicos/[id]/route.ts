@@ -56,6 +56,7 @@ async function PATCHHandler(
         email: data.email || null,
         duracionTurnoMinutos: data.duracionTurnoMinutos,
         activo: data.activo,
+        ...(data.color ? { color: data.color } : {}),
       },
     }),
   );

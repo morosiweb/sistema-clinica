@@ -9,7 +9,7 @@ async function PATCHHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { session, response } = await requireSession(["bloqueos"]);
+  const { session, response } = await requireSession(["bloqueos", "medicos"]);
   if (!session) return response;
   if (session.user.rol === "MEDICO")
     throw new ErrorClinica(
@@ -38,3 +38,23 @@ async function PATCHHandler(
 }
 
 export const PATCH = conErrores(PATCHHandler);
+
+async function DELETEHandler(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { session, response } = await requireSession(["bloqueos", "medicos"]);
+  if (!session) return response;
+  if (session.user.rol === "MEDICO")
+    throw new ErrorClinica("Debe resolverlo secretaría o administración", 403);
+  const { id } = await params;
+  // Se conserva la ausencia como rechazada para no borrar su registro.
+  await transaccionAgenda((tx) =>
+    tx.bloqueoMedico.update({
+      where: { id },
+      data: { estado: "RECHAZADO", aprobadoPorId: session.user.id },
+    }),
+  );
+  return NextResponse.json({ ok: true });
+}
+export const DELETE = conErrores(DELETEHandler);

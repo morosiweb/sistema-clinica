@@ -9,6 +9,7 @@ import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import EmbeddedPostgres from "embedded-postgres";
 import { request, chromium, type APIRequestContext } from "@playwright/test";
 import bcrypt from "bcryptjs";
+import { pruebasPanel } from "./panel-secretaria";
 
 async function main() {
   async function puertoLibre() {
@@ -73,6 +74,7 @@ async function main() {
   let appLogs = "";
   let cerrarPrisma: (() => Promise<void>) | undefined;
   let casos = 0;
+  let huboFallo = false;
   const contexts: APIRequestContext[] = [];
   async function caso(nombre: string, fn: () => Promise<void>) {
     await fn();
@@ -1736,10 +1738,24 @@ async function main() {
         }
       },
     );
+    await pruebasPanel({
+      prisma,
+      sec,
+      doc,
+      adm,
+      anon,
+      baseURL,
+      futuro,
+      medicoId: medico.id,
+      pacienteId: paciente.id,
+      autorId: secretaria.id,
+      caso,
+    });
     console.log(
       `\n${casos} pruebas de integración correctas. PostgreSQL y correos exclusivamente locales.`,
     );
   } catch (error) {
+    huboFallo = true;
     console.error(error);
     console.error(appLogs);
     process.exitCode = 1;
@@ -1761,6 +1777,7 @@ async function main() {
         retryDelay: 100,
       });
   }
+  if (huboFallo) process.exitCode = 1;
 }
 void main().catch((error) => {
   console.error(error);

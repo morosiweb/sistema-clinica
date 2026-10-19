@@ -19,8 +19,8 @@ datasource db {
 // interno sí usa bcrypt irreversible porque ahí nunca hace falta reenviarla).
 
 model Paciente {
-  id                String          @id @default(cuid())
-  dni               String          @unique
+  id                String            @id @default(cuid())
+  dni               String            @unique
   nombre            String
   apellido          String
   telefono          String?
@@ -34,15 +34,17 @@ model Paciente {
   grupoSanguineo    String?
   alergias          String?
   antecedentes      String?
-  tokenAccesoHash   String          @unique
+  tokenAccesoHash   String            @unique
   tokenAccesoEnc    String
-  tokenGeneradoEl   DateTime        @default(now())
-  ausenciasSinAviso Int             @default(0)
-  versionFicha      Int             @default(0)
+  tokenGeneradoEl   DateTime          @default(now())
+  ausenciasSinAviso Int               @default(0)
+  versionFicha      Int               @default(0)
   revisionesFicha   RevisionFicha[]
   turnos            Turno[]
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  notasCompartidas  NotaPaciente[]
+  archivos          ArchivoPaciente[]
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 }
 
 // ===================== MEDICOS Y AGENDA =====================
@@ -66,6 +68,7 @@ model Medico {
   email                String?
   duracionTurnoMinutos Int             @default(30)
   activo               Boolean         @default(true)
+  color                String          @default("#0f766e")
   usuarioInterno       UsuarioInterno?
   horarios             HorarioMedico[]
   bloqueos             BloqueoMedico[]
@@ -233,24 +236,26 @@ enum RolInterno {
 }
 
 model UsuarioInterno {
-  id                String          @id @default(cuid())
+  id                String            @id @default(cuid())
   nombre            String
-  email             String          @unique
+  email             String            @unique
   password          String
-  rol               RolInterno      @default(SECRETARIA)
+  rol               RolInterno        @default(SECRETARIA)
   // Si el usuario es un medico, queda vinculado a su ficha de Medico.
-  medicoId          String?         @unique
-  medico            Medico?         @relation(fields: [medicoId], references: [id])
-  activo            Boolean         @default(true)
+  medicoId          String?           @unique
+  medico            Medico?           @relation(fields: [medicoId], references: [id])
+  activo            Boolean           @default(true)
   // Fuerza bruta de login: igual criterio que en ml-afiliados.
-  intentosFallidos  Int             @default(0)
+  intentosFallidos  Int               @default(0)
   bloqueadoHasta    DateTime?
   // Pantallas a las que puede entrar (lista JSON de claves). null = todas
   // (admin). No aplica a MEDICO, que siempre ve solo su propia agenda.
   permisos          String?
   bloqueosAprobados BloqueoMedico[]
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  notasPacientes    NotaPaciente[]
+  archivosPacientes ArchivoPaciente[]
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 }
 
 // Códigos de un uso; no se almacena el código ni se crea una cuenta.
@@ -301,4 +306,31 @@ model RevisionNota {
   fecha        DateTime @default(now())
 
   @@index([turnoId, fecha])
+}
+
+model NotaPaciente {
+  id         String         @id @default(cuid())
+  pacienteId String
+  paciente   Paciente       @relation(fields: [pacienteId], references: [id])
+  contenido  String
+  autorId    String
+  autor      UsuarioInterno @relation(fields: [autorId], references: [id])
+  createdAt  DateTime       @default(now())
+
+  @@index([pacienteId, createdAt])
+}
+
+model ArchivoPaciente {
+  id         String         @id @default(cuid())
+  pacienteId String
+  paciente   Paciente       @relation(fields: [pacienteId], references: [id])
+  nombre     String
+  tipo       String
+  tamanio    Int
+  contenido  Bytes
+  autorId    String
+  autor      UsuarioInterno @relation(fields: [autorId], references: [id])
+  createdAt  DateTime       @default(now())
+
+  @@index([pacienteId, createdAt])
 }

@@ -2,8 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   CalendarDays,
-  Clock3,
-  CircleCheck,
   ArrowUpRight,
   Stethoscope,
   ArrowRight,
@@ -125,22 +123,6 @@ export default async function Home() {
               icon: CalendarDays,
               caption: "Consultas en la jornada",
               color: "teal",
-            },
-            {
-              label: "Pendientes de atención",
-              value: activos.filter((t) =>
-                ["PENDIENTE", "CONFIRMADO"].includes(t.estado),
-              ).length,
-              icon: Clock3,
-              caption: "Reservados y confirmados",
-              color: "amber",
-            },
-            {
-              label: "Pacientes atendidos",
-              value: activos.filter((t) => t.estado === "ATENDIDO").length,
-              icon: CircleCheck,
-              caption: "Consultas finalizadas hoy",
-              color: "blue",
             },
           ].map(({ label, value, icon: Icon, caption, color }) => (
             <article className="metric-card" key={label}>

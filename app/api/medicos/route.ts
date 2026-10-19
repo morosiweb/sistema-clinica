@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/api-auth";
 import { medicoSchema } from "@/lib/validations/medico";
+import { COLORES_MEDICOS } from "@/lib/colores-medicos";
 
 async function GETHandler() {
   const { session, response } = await requireSession([
@@ -32,6 +33,11 @@ async function POSTHandler(request: NextRequest) {
     );
   }
   const data = parsed.data;
+  const existentes = await prisma.medico.findMany({ select: { color: true } });
+  const color =
+    data.color ||
+    COLORES_MEDICOS.find((c) => !existentes.some((m) => m.color === c)) ||
+    COLORES_MEDICOS[existentes.length % COLORES_MEDICOS.length];
 
   const medico = await prisma.medico.create({
     data: {
@@ -43,6 +49,7 @@ async function POSTHandler(request: NextRequest) {
       email: data.email || null,
       duracionTurnoMinutos: data.duracionTurnoMinutos,
       activo: data.activo,
+      color,
     },
   });
   return NextResponse.json(medico, { status: 201 });

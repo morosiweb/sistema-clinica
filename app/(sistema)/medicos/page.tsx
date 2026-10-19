@@ -44,6 +44,7 @@ export default async function MedicosPage() {
             key={m.id}
             href={`/medicos/${m.id}`}
             className="professional-card"
+            style={{ borderTop: `4px solid ${m.color}` }}
           >
             <span className="doctor-avatar" aria-hidden="true">
               {m.nombre[0]}

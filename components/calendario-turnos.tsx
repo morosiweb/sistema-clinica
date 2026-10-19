@@ -4,28 +4,35 @@ import {
   ChevronRight,
   RefreshCw,
   CalendarDays,
+  Check,
+  X,
+  Phone,
 } from "lucide-react";
-import { EstadoBadge } from "@/components/estado-badge";
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
-import { useHoy, useRecurso } from "@/lib/cliente";
+import { useHoy, useRecurso, fetchJSON, mensajeError } from "@/lib/cliente";
 import { sumarDias } from "@/lib/fecha";
 
 type TurnoCal = {
   id: string;
   medicoId: string;
   medicoNombre: string;
+  medicoColor: string;
   pacienteNombre: string;
+  pacienteTelefono: string | null;
   fecha: string;
   horaInicio: string;
   horaFin: string;
   estado: string;
+  version: number;
+  canalReserva: string;
 };
 type MedicoCal = {
   id: string;
   nombre: string;
   apellido: string;
   activo: boolean;
+  color: string;
 };
 function lunes(fecha: string) {
   const d = new Date(`${fecha}T00:00:00Z`).getUTCDay();
@@ -40,6 +47,103 @@ function hora(t: number) {
     .toString()
     .padStart(2, "0")}:${(t % 60).toString().padStart(2, "0")}`;
 }
+function diaBonito(d: string) {
+  return new Date(`${d}T12:00:00Z`).toLocaleDateString("es-AR", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  });
+}
+function TarjetaTurno({
+  turno: t,
+  clase,
+  style,
+  puedeConfirmar,
+  ocupado,
+  resolver,
+}: {
+  turno: TurnoCal;
+  clase: string;
+  style?: CSSProperties;
+  puedeConfirmar: boolean;
+  ocupado: boolean;
+  resolver: (t: TurnoCal, estado: "CONFIRMADO" | "CANCELADO") => void;
+}) {
+  const router = useRouter();
+  const nuevo = t.estado === "PENDIENTE";
+  return (
+    <article
+      className={`${clase} appointment-event ${minutos(t.horaFin) - minutos(t.horaInicio) < 15 ? "compact" : ""}`}
+      data-estado={t.estado}
+      data-turno-id={t.id}
+      style={
+        {
+          ...style,
+          "--medico-color": t.medicoColor || "#0f766e",
+        } as CSSProperties
+      }
+    >
+      <button
+        type="button"
+        className="event-open"
+        onClick={() => router.push(`/turnos/${t.id}`)}
+        aria-label={`${t.horaInicio}–${t.horaFin} ${t.pacienteNombre} · ${t.estado}`}
+      >
+        <span className="event-time">
+          {t.horaInicio}–{t.horaFin}
+        </span>
+        <span className="event-name">{t.pacienteNombre}</span>
+        <span className="event-doctor">{t.medicoNombre}</span>
+        <span className="event-state">
+          {nuevo
+            ? "Por confirmar"
+            : t.estado === "CONFIRMADO"
+              ? "Confirmado"
+              : t.estado === "CANCELADO"
+                ? "Cancelado"
+                : t.estado === "ATENDIDO"
+                  ? "Atendido"
+                  : "Ausente"}
+        </span>
+      </button>
+      {puedeConfirmar && nuevo && (
+        <div className="event-actions">
+          <button
+            type="button"
+            disabled={ocupado}
+            aria-label={`Cancelar turno de ${t.pacienteNombre}`}
+            title="Cancelar turno"
+            onClick={() => resolver(t, "CANCELADO")}
+          >
+            <X size={18} />
+          </button>
+          <button
+            type="button"
+            disabled={ocupado}
+            aria-label={`Confirmar turno de ${t.pacienteNombre}`}
+            title="Confirmar turno"
+            onClick={() => resolver(t, "CONFIRMADO")}
+          >
+            <Check size={18} />
+          </button>
+        </div>
+      )}
+      {t.estado === "CANCELADO" && (
+        <div className="event-phone">
+          <Phone size={16} />
+          {t.pacienteTelefono ? (
+            <a href={`tel:${t.pacienteTelefono.replace(/[^+\d]/g, "")}`}>
+              {t.pacienteTelefono}
+            </a>
+          ) : (
+            <span>Sin teléfono registrado</span>
+          )}
+        </div>
+      )}
+    </article>
+  );
+}
 export function CalendarioTurnos({
   mostrarFiltroMedicos,
 }: {
@@ -51,6 +155,11 @@ export function CalendarioTurnos({
   const fecha = dia || hoy;
   const [vista, setVista] = useState<"dia" | "semana">("dia");
   const [seleccionados, setSeleccionados] = useState<string[]>([]);
+  const [ocupado, setOcupado] = useState("");
+  const [error, setError] = useState("");
+  const [canceladoReciente, setCanceladoReciente] = useState<TurnoCal | null>(
+    null,
+  );
   const medicos = useRecurso<MedicoCal[]>(
     mostrarFiltroMedicos ? "/api/medicos" : null,
   );
@@ -67,7 +176,15 @@ export function CalendarioTurnos({
     ? (medicos.data || []).filter(
         (m) => !seleccionados.length || seleccionados.includes(m.id),
       )
-    : [{ id: "__propio__", nombre: "Mi", apellido: "agenda", activo: true }];
+    : [
+        {
+          id: "__propio__",
+          nombre: "Mi",
+          apellido: "agenda",
+          activo: true,
+          color: "#0f766e",
+        },
+      ];
   const activos = turnos.filter((t) => t.estado !== "CANCELADO"),
     cancelados = turnos.filter((t) => t.estado === "CANCELADO");
   const min = Math.min(
@@ -78,28 +195,48 @@ export function CalendarioTurnos({
     20 * 60,
     ...activos.map((t) => Math.ceil(minutos(t.horaFin) / 30) * 30),
   );
-  const alto = (max - min) * 2;
+  const escala = 6,
+    alto = (max - min) * escala;
   const filas = Array.from(
     { length: Math.ceil((max - min) / 30) },
     (_, i) => min + i * 30,
   );
-  function abrir(t: TurnoCal) {
-    router.push(`/turnos/${t.id}`);
-  }
-
   const dias = desde
     ? Array.from({ length: vista === "semana" ? 7 : 1 }, (_, i) =>
         sumarDias(desde, i),
       )
     : [];
-  function diaBonito(d: string) {
-    return new Date(`${d}T12:00:00Z`).toLocaleDateString("es-AR", {
-      weekday: "short",
-      day: "numeric",
-      month: "short",
-      timeZone: "UTC",
-    });
+  async function resolver(t: TurnoCal, estado: "CONFIRMADO" | "CANCELADO") {
+    if (ocupado) return;
+    setOcupado(t.id);
+    setError("");
+    try {
+      await fetchJSON(`/api/turnos/${t.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ estado, version: t.version }),
+      });
+      if (estado === "CANCELADO") setCanceladoReciente({ ...t, estado });
+      recurso.refrescar();
+      router.refresh();
+    } catch (e) {
+      setError(mensajeError(e));
+      recurso.refrescar();
+    } finally {
+      setOcupado("");
+    }
   }
+  const tarjeta = (t: TurnoCal, clase: string, style?: CSSProperties) => (
+    <TarjetaTurno
+      key={t.id}
+      turno={t}
+      clase={clase}
+      style={style}
+      puedeConfirmar={mostrarFiltroMedicos}
+      ocupado={!!ocupado}
+      resolver={resolver}
+    />
+  );
   return (
     <div className="calendar">
       <div className="calendar-toolbar">
@@ -108,7 +245,7 @@ export function CalendarioTurnos({
           disabled={!fecha}
           onClick={() => setDia(sumarDias(fecha, vista === "dia" ? -1 : -7))}
         >
-          <ChevronLeft size={16} />
+          <ChevronLeft size={18} />
         </button>
         <label className="calendar-date">
           Fecha
@@ -116,7 +253,10 @@ export function CalendarioTurnos({
             type="date"
             disabled={!hoy}
             value={fecha}
-            onChange={(e) => setDia(e.target.value)}
+            onChange={(e) => {
+              setDia(e.target.value);
+              setCanceladoReciente(null);
+            }}
           />
         </label>
         <button
@@ -124,10 +264,10 @@ export function CalendarioTurnos({
           disabled={!fecha}
           onClick={() => setDia(sumarDias(fecha, vista === "dia" ? 1 : 7))}
         >
-          <ChevronRight size={16} />
+          <ChevronRight size={18} />
         </button>
         <button onClick={() => setDia(hoy)}>Hoy</button>
-        <label className="flex items-center gap-2 text-xs text-neutral-500">
+        <label className="flex items-center gap-2">
           Vista
           <select
             aria-label="Vista"
@@ -139,11 +279,11 @@ export function CalendarioTurnos({
           </select>
         </label>
         <button className="refresh-calendar" onClick={recurso.refrescar}>
-          <RefreshCw size={14} />
+          <RefreshCw size={16} />
           Actualizar
         </button>
       </div>
-      <p className="px-4 py-2 text-xs text-neutral-500">
+      <p className="px-4 py-2 text-sm text-neutral-500">
         {recurso.error
           ? recurso.data
             ? "No pudimos actualizar la agenda. Se muestran los últimos datos disponibles; reintentaremos automáticamente."
@@ -168,16 +308,32 @@ export function CalendarioTurnos({
                   )
                 }
               />
+              <i
+                className="doctor-color-dot"
+                style={{ backgroundColor: m.color }}
+              />
               {m.apellido}
               {!m.activo && " (inactivo)"}
             </label>
           ))}
         </div>
       )}
-      {(recurso.error || medicos.error) && (
+      {(error || recurso.error || medicos.error) && (
         <p role="alert" className="notice notice-error m-4">
-          {recurso.error || medicos.error}
+          {error || recurso.error || medicos.error}
         </p>
+      )}
+      {canceladoReciente && recurso.data && !recurso.error && (
+        <div className="recent-cancellation m-4" role="status">
+          <p>Turno cancelado. Podés llamar al paciente:</p>
+          {tarjeta(canceladoReciente, "cancelled-event")}
+          <button
+            className="text-sm underline"
+            onClick={() => setCanceladoReciente(null)}
+          >
+            Cerrar aviso
+          </button>
+        </div>
       )}
       {recurso.cargando || (mostrarFiltroMedicos && medicos.cargando) ? (
         <p className="loading-state" role="status">
@@ -195,7 +351,7 @@ export function CalendarioTurnos({
                         <span
                           key={m}
                           className="absolute"
-                          style={{ top: (m - min) * 2 }}
+                          style={{ top: (m - min) * escala }}
                         >
                           {hora(m)}
                         </span>
@@ -205,6 +361,10 @@ export function CalendarioTurnos({
                   {columnas.map((c) => (
                     <div key={c.id} className="calendar-doctor-column">
                       <p className="calendar-doctor-name">
+                        <i
+                          className="doctor-color-dot"
+                          style={{ backgroundColor: c.color }}
+                        />
                         {c.id === "__propio__"
                           ? "Mi agenda"
                           : `${c.apellido}, ${c.nombre}`}
@@ -216,7 +376,10 @@ export function CalendarioTurnos({
                               key={m}
                               aria-label={`Reservar con ${c.apellido} a las ${hora(m)}`}
                               className="calendar-line"
-                              style={{ top: (m - min) * 2 }}
+                              style={{
+                                top: (m - min) * escala,
+                                height: 30 * escala,
+                              }}
                               onClick={() =>
                                 router.push(
                                   `/turnos/nuevo?${new URLSearchParams({ medicoId: c.id, fecha, hora: hora(m) })}`,
@@ -227,7 +390,10 @@ export function CalendarioTurnos({
                             <div
                               key={m}
                               className="calendar-line"
-                              style={{ top: (m - min) * 2 }}
+                              style={{
+                                top: (m - min) * escala,
+                                height: 30 * escala,
+                              }}
                             />
                           ),
                         )}
@@ -235,32 +401,16 @@ export function CalendarioTurnos({
                           .filter(
                             (t) => c.id === "__propio__" || t.medicoId === c.id,
                           )
-                          .map((t) => (
-                            <button
-                              key={t.id}
-                              onClick={() => abrir(t)}
-                              aria-label={`${t.horaInicio}–${t.horaFin} ${t.pacienteNombre} · ${t.estado}`}
-                              title={`${t.horaInicio}–${t.horaFin} ${t.pacienteNombre}`}
-                              className="calendar-event"
-                              data-estado={t.estado}
-                              style={{
-                                top: (minutos(t.horaInicio) - min) * 2,
-                                height: Math.max(
-                                  20,
-                                  (minutos(t.horaFin) - minutos(t.horaInicio)) *
-                                    2,
-                                ),
-                              }}
-                            >
-                              <span className="event-time">
-                                {t.horaInicio}–{t.horaFin}
-                              </span>{" "}
-                              <span className="event-name">
-                                {t.pacienteNombre}
-                              </span>{" "}
-                              <span className="event-state">· {t.estado}</span>
-                            </button>
-                          ))}
+                          .map((t) =>
+                            tarjeta(t, "calendar-event", {
+                              top: (minutos(t.horaInicio) - min) * escala,
+                              height: Math.max(
+                                28,
+                                (minutos(t.horaFin) - minutos(t.horaInicio)) *
+                                  escala,
+                              ),
+                            }),
+                          )}
                       </div>
                     </div>
                   ))}
@@ -272,20 +422,7 @@ export function CalendarioTurnos({
                       <p>{diaBonito(d)}</p>
                       {activos
                         .filter((t) => t.fecha.slice(0, 10) === d)
-                        .map((t) => (
-                          <button
-                            key={t.id}
-                            onClick={() => abrir(t)}
-                            className="week-event"
-                          >
-                            <strong>
-                              {t.horaInicio}–{t.horaFin}
-                            </strong>
-                            {t.pacienteNombre}
-                            <br />
-                            {t.medicoNombre}
-                          </button>
-                        ))}
+                        .map((t) => tarjeta(t, "week-event"))}
                     </div>
                   ))}
                 </div>
@@ -298,23 +435,7 @@ export function CalendarioTurnos({
                 <h3>{diaBonito(d)}</h3>
                 {activos
                   .filter((t) => t.fecha.slice(0, 10) === d)
-                  .map((t) => (
-                    <button
-                      key={t.id}
-                      className="calendar-mobile-event"
-                      onClick={() => abrir(t)}
-                    >
-                      <span>
-                        {t.horaInicio}
-                        <small>{t.horaFin}</small>
-                      </span>
-                      <span>
-                        {t.pacienteNombre}
-                        <small>{t.medicoNombre}</small>
-                      </span>
-                      <EstadoBadge estado={t.estado} />
-                    </button>
-                  ))}
+                  .map((t) => tarjeta(t, "calendar-mobile-event"))}
                 {!activos.some((t) => t.fecha.slice(0, 10) === d) && (
                   <div className="empty-state">
                     <CalendarDays size={25} />
@@ -324,7 +445,8 @@ export function CalendarioTurnos({
                         className="text-link mt-3"
                         onClick={() => router.push(`/turnos/nuevo?fecha=${d}`)}
                       >
-                        Reservar un turno <ChevronRight size={14} />
+                        Reservar un turno
+                        <ChevronRight size={16} />
                       </button>
                     )}
                   </div>
@@ -336,34 +458,18 @@ export function CalendarioTurnos({
       )}
       <div className="calendar-legend">
         <span>
-          <i />
-          Por atender
+          <i style={{ background: "#9ca3af" }} />
+          Gris: por confirmar
         </span>
-        <span>
-          <i />
-          Atendido
-        </span>
-        <span>
-          <i />
-          Ausente
-        </span>
+        <span>Color del médico: confirmado</span>
       </div>
       {cancelados.length > 0 && (
-        <details className="calendar-cancelled">
-          <summary>Turnos cancelados ({cancelados.length})</summary>
-          <div className="mt-3 space-y-2">
-            {cancelados.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => abrir(t)}
-                className="block text-left"
-              >
-                {diaBonito(t.fecha.slice(0, 10))} · {t.horaInicio} ·{" "}
-                {t.pacienteNombre} · {t.medicoNombre}
-              </button>
-            ))}
+        <section className="calendar-cancelled">
+          <h3>Turnos cancelados ({cancelados.length})</h3>
+          <div className="cancelled-grid">
+            {cancelados.map((t) => tarjeta(t, "cancelled-event"))}
           </div>
-        </details>
+        </section>
       )}
     </div>
   );

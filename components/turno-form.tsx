@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useHoy, useRecurso } from "@/lib/cliente";
 import { useRouter } from "next/navigation";
 
@@ -33,6 +32,16 @@ export function TurnoForm({
   );
   const resultados = pacientes.data || [];
   const [pacienteElegido, setPacienteElegido] = useState<Paciente | null>(null);
+  const [esNuevo, setEsNuevo] = useState(false);
+  const [nuevo, setNuevo] = useState({
+    dni: "",
+    nombre: "",
+    apellido: "",
+    telefono: "",
+    email: "",
+    obraSocial: "",
+    fechaNacimiento: "",
+  });
 
   const [medicoId, setMedicoId] = useState(
     prefill?.medicoId || medicos[0]?.id || "",
@@ -54,7 +63,7 @@ export function TurnoForm({
     try {
       e.preventDefault();
       setError(null);
-      if (!pacienteElegido) {
+      if (!esNuevo && !pacienteElegido) {
         setError("Elegí un paciente.");
         return;
       }
@@ -71,7 +80,9 @@ export function TurnoForm({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          pacienteId: pacienteElegido.id,
+          ...(esNuevo
+            ? { pacienteNuevo: nuevo }
+            : { pacienteId: pacienteElegido!.id }),
           medicoId,
           fecha,
           horaInicio,
@@ -103,62 +114,127 @@ export function TurnoForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-1">
-        <label htmlFor="turno-buscar-paciente" className="text-sm font-medium">
-          Paciente *
-        </label>
-        {pacienteElegido ? (
-          <div className="flex items-center justify-between rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700">
-            <span>
-              {pacienteElegido.apellido}, {pacienteElegido.nombre} · DNI{" "}
-              {pacienteElegido.dni}
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                setPacienteElegido(null);
-                setBusquedaPaciente("");
-              }}
-              className="text-neutral-500 underline"
-            >
-              Cambiar
-            </button>
+      <fieldset className="space-y-4">
+        <legend className="text-lg font-semibold">Paciente</legend>
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            className={`btn ${!esNuevo ? "btn-primary" : "btn-outline"}`}
+            aria-pressed={!esNuevo}
+            onClick={() => setEsNuevo(false)}
+          >
+            Paciente existente
+          </button>
+          <button
+            type="button"
+            className={`btn ${esNuevo ? "btn-primary" : "btn-outline"}`}
+            aria-pressed={esNuevo}
+            onClick={() => setEsNuevo(true)}
+          >
+            Crear paciente nuevo
+          </button>
+        </div>
+        {esNuevo ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {(
+              [
+                ["dni", "DNI *"],
+                ["nombre", "Nombre *"],
+                ["apellido", "Apellido *"],
+                ["telefono", "Teléfono"],
+                ["email", "Email"],
+                ["obraSocial", "Obra social"],
+                ["fechaNacimiento", "Fecha de nacimiento"],
+              ] as const
+            ).map(([campo, label]) => (
+              <label key={campo}>
+                {label}
+                <input
+                  className={inputClass}
+                  required={["dni", "nombre", "apellido"].includes(campo)}
+                  type={
+                    campo === "email"
+                      ? "email"
+                      : campo === "fechaNacimiento"
+                        ? "date"
+                        : "text"
+                  }
+                  value={nuevo[campo]}
+                  maxLength={
+                    campo === "dni"
+                      ? 15
+                      : campo === "telefono"
+                        ? 30
+                        : campo === "email"
+                          ? 254
+                          : 100
+                  }
+                  onChange={(e) =>
+                    setNuevo((v) => ({ ...v, [campo]: e.target.value }))
+                  }
+                />
+              </label>
+            ))}
+            <p className="sm:col-span-2">
+              El paciente y su turno se guardan juntos al reservar.
+            </p>
           </div>
         ) : (
-          <div className="relative">
-            <input
-              id="turno-buscar-paciente"
-              className={inputClass}
-              placeholder="Buscar por DNI, nombre o apellido..."
-              value={busquedaPaciente}
-              onChange={(e) => setBusquedaPaciente(e.target.value)}
-            />
-            {resultados.length > 0 && (
-              <div className="absolute z-10 mt-1 w-full rounded-md border border-neutral-200 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
-                {resultados.map((p) => (
-                  <button
-                    type="button"
-                    key={p.id}
-                    onClick={() => {
-                      setPacienteElegido(p);
-                      setBusquedaPaciente("");
-                    }}
-                    className="block w-full px-3 py-2 text-left text-sm hover:bg-neutral-50 dark:hover:bg-neutral-800"
-                  >
-                    {p.apellido}, {p.nombre} · DNI {p.dni}
-                  </button>
-                ))}
+          <div className="space-y-1">
+            <label
+              htmlFor="turno-buscar-paciente"
+              className="text-sm font-medium"
+            >
+              Paciente *
+            </label>
+            {pacienteElegido ? (
+              <div className="flex items-center justify-between rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700">
+                <span>
+                  {pacienteElegido.apellido}, {pacienteElegido.nombre} · DNI{" "}
+                  {pacienteElegido.dni}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPacienteElegido(null);
+                    setBusquedaPaciente("");
+                  }}
+                  className="text-neutral-500 underline"
+                >
+                  Cambiar
+                </button>
+              </div>
+            ) : (
+              <div className="relative">
+                <input
+                  id="turno-buscar-paciente"
+                  className={inputClass}
+                  placeholder="Buscar por DNI, nombre o apellido..."
+                  value={busquedaPaciente}
+                  onChange={(e) => setBusquedaPaciente(e.target.value)}
+                />
+                {resultados.length > 0 && (
+                  <div className="absolute z-10 mt-1 w-full rounded-md border border-neutral-200 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+                    {resultados.map((p) => (
+                      <button
+                        type="button"
+                        key={p.id}
+                        onClick={() => {
+                          setPacienteElegido(p);
+                          setBusquedaPaciente("");
+                        }}
+                        className="block w-full px-3 py-2 text-left text-sm hover:bg-neutral-50 dark:hover:bg-neutral-800"
+                      >
+                        {p.apellido}, {p.nombre} · DNI {p.dni}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
         )}
-        <Link
-          href="/pacientes/nuevo"
-          className="text-xs text-neutral-500 underline"
-        >
-          ¿No existe? Cargarlo como paciente nuevo
-        </Link>
-      </div>
+      </fieldset>
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1">

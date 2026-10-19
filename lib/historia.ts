@@ -19,7 +19,7 @@ export async function obtenerHistoriaPaciente(
         : {}),
     },
     include: { medico: { include: { especialidad: true } } },
-    orderBy: [{ fecha: "desc" }, { horaInicio: "desc" }],
+    orderBy: [{ fecha: "desc" }, { horaInicio: "desc" }, { id: "desc" }],
     take: 50,
     skip: ((opciones?.pagina || 1) - 1) * 50,
   });

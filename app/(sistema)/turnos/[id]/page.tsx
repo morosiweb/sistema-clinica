@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { parsePermisos, puedeVer } from "@/lib/pantallas";
 import { TurnoDetalle } from "@/components/turno-detalle";
 import { obtenerHistoriaPaciente } from "@/lib/historia";
+import Link from "next/link";
 
 export const instant = false;
 
@@ -76,6 +77,12 @@ export default async function TurnoDetallePage({
   return (
     <div className="record-page">
       <h1 className="mb-6 text-xl font-semibold">Turno</h1>
+      <Link
+        className="btn btn-outline mb-5"
+        href={`/pacientes/${turno.pacienteId}`}
+      >
+        Ver ficha, notas y archivos del paciente
+      </Link>
       <TurnoDetalle
         key={`${turno.id}:${turno.version}`}
         turno={{

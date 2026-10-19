@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Brand } from "@/components/brand";
 import { ArrowRight, ShieldCheck, HeartPulse } from "lucide-react";
 import { signIn } from "next-auth/react";
+import { Volver } from "@/components/volver";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -44,6 +45,9 @@ export default function LoginPage() {
 
   return (
     <main className="login-page">
+      <div className="login-back">
+        <Volver destino="/" />
+      </div>
       <section className="login-story">
         <Brand light />
         <div>
