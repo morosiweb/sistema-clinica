@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { requireSession } from "@/lib/api-auth";
 import { conErrores, ErrorClinica } from "@/lib/errores";
@@ -8,7 +7,18 @@ import { permisosPorRol, serializarPermisos } from "@/lib/pantallas";
 import { prisma } from "@/lib/prisma";
 import { emailSchema } from "@/lib/validations/comun";
 
-const accesoSchema = z.object({ email: emailSchema.max(254) }).strict();
+const accesoSchema = z
+  .object({
+    email: emailSchema.max(254),
+    password: z
+      .string()
+      .min(8, "La contraseña debe tener al menos 8 caracteres")
+      .max(72, "La contraseña es demasiado larga")
+      .refine((valor) => Buffer.byteLength(valor, "utf8") <= 72, {
+        message: "La contraseña es demasiado larga; usá menos caracteres",
+      }),
+  })
+  .strict();
 
 async function POSTHandler(
   request: NextRequest,
@@ -20,9 +30,10 @@ async function POSTHandler(
     return NextResponse.json({ error: "Sin acceso" }, { status: 403 });
   }
 
-  const { email } = accesoSchema.parse(await request.json());
+  const { email, password: passwordInicial } = accesoSchema.parse(
+    await request.json(),
+  );
   const { id } = await params;
-  const passwordInicial = randomBytes(12).toString("base64url");
   const password = await bcrypt.hash(passwordInicial, 10);
 
   const usuario = await prisma.$transaction(async (tx) => {
@@ -63,7 +74,7 @@ async function POSTHandler(
   });
 
   return NextResponse.json(
-    { usuario, passwordInicial },
+    { usuario },
     { status: 201, headers: { "Cache-Control": "private, no-store" } },
   );
 }

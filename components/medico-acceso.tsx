@@ -21,6 +21,9 @@ export function MedicoAcceso({
 }) {
   const router = useRouter();
   const [email, setEmail] = useState(emailMedico);
+  const [password, setPassword] = useState("");
+  const [confirmacion, setConfirmacion] = useState("");
+  const [mostrarPassword, setMostrarPassword] = useState(false);
   const [credenciales, setCredenciales] = useState<Credenciales | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,15 +31,19 @@ export function MedicoAcceso({
   const [cuentaCreada, setCuentaCreada] = useState<Cuenta | null>(null);
   const cuentaActual = cuentaCreada ?? cuenta;
 
-  async function generar(e: React.FormEvent) {
+  async function crear(e: React.FormEvent) {
     e.preventDefault();
-    setGuardando(true);
     setError(null);
+    if (password !== confirmacion) {
+      setError("Las contraseñas no coinciden.");
+      return;
+    }
+    setGuardando(true);
     try {
       const res = await fetch(`/api/medicos/${medicoId}/acceso`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, password }),
       });
       const body = await res.json();
       if (!res.ok) {
@@ -44,8 +51,11 @@ export function MedicoAcceso({
         if (res.status === 409) router.refresh();
         return;
       }
-      setCredenciales(body);
+      setCredenciales({ usuario: body.usuario, passwordInicial: password });
       setCuentaCreada(body.usuario);
+      setPassword("");
+      setConfirmacion("");
+      setMostrarPassword(false);
     } catch {
       setError(
         "No se pudo confirmar la creación. Recargá el perfil para comprobar si el acceso se creó antes de intentar nuevamente.",
@@ -148,7 +158,7 @@ export function MedicoAcceso({
           Activá y guardá la ficha del médico para poder crear su acceso.
         </p>
       ) : (
-        <form onSubmit={generar} className="space-y-4">
+        <form onSubmit={crear} className="space-y-4">
           <div className="space-y-1">
             <label
               htmlFor="medico-acceso-email"
@@ -169,10 +179,65 @@ export function MedicoAcceso({
               className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-800"
             />
             <p id="medico-acceso-ayuda" className="text-sm text-neutral-500">
-              Este email será su usuario. Se generará una contraseña
-              automáticamente.
+              Este email será su usuario.
             </p>
           </div>
+          <div className="space-y-1">
+            <label
+              htmlFor="medico-acceso-password"
+              className="text-sm font-medium"
+            >
+              Contraseña para el médico *
+            </label>
+            <input
+              id="medico-acceso-password"
+              type={mostrarPassword ? "text" : "password"}
+              autoComplete="new-password"
+              required
+              minLength={8}
+              maxLength={72}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={guardando}
+              aria-describedby="medico-acceso-password-ayuda"
+              className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-800"
+            />
+            <p
+              id="medico-acceso-password-ayuda"
+              className="text-sm text-neutral-500"
+            >
+              Elegí una contraseña de al menos 8 caracteres para entregarle al
+              médico.
+            </p>
+          </div>
+          <div className="space-y-1">
+            <label
+              htmlFor="medico-acceso-confirmacion"
+              className="text-sm font-medium"
+            >
+              Confirmar contraseña *
+            </label>
+            <input
+              id="medico-acceso-confirmacion"
+              type={mostrarPassword ? "text" : "password"}
+              autoComplete="new-password"
+              required
+              minLength={8}
+              maxLength={72}
+              value={confirmacion}
+              onChange={(e) => setConfirmacion(e.target.value)}
+              disabled={guardando}
+              className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-800"
+            />
+          </div>
+          <button
+            type="button"
+            aria-pressed={mostrarPassword}
+            onClick={() => setMostrarPassword((mostrar) => !mostrar)}
+            className="text-sm underline"
+          >
+            {mostrarPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+          </button>
           {error && (
             <p className="text-sm text-red-600" role="alert">
               {error}
@@ -183,7 +248,7 @@ export function MedicoAcceso({
             disabled={guardando}
             className="btn btn-primary"
           >
-            {guardando ? "Generando acceso…" : "Generar usuario y contraseña"}
+            {guardando ? "Creando acceso…" : "Crear acceso"}
           </button>
         </form>
       )}

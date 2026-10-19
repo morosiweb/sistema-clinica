@@ -63,7 +63,7 @@ npm run dev
 
 El seed crea el primer administrador y muestra su contraseña una vez. Admite `SEED_ADMIN_EMAIL` y `SEED_ADMIN_PASSWORD`. Los usuarios del personal se administran en `/admin/usuarios`; el paciente nunca es un usuario interno.
 
-Secretaría y administración también pueden crear el acceso de un médico desde **Médicos → perfil → Acceso al panel**. Ingresan el email que usará como usuario y el sistema genera una contraseña inicial, visible una sola vez y con opción para copiar los datos. La cuenta queda vinculada al médico con rol MEDICO y acceso a su agenda y licencias. No requiere migraciones. Los médicos inactivos no pueden recibir nuevas cuentas; si ya existe una cuenta vinculada, se muestra su estado sin reemplazarla. Los cambios de contraseña o reactivaciones siguen a cargo del administrador en Usuarios.
+Secretaría y administración también pueden crear el acceso de un médico desde **Médicos → perfil → Acceso al panel**. Ingresan el email que usará como usuario y escriben y confirman una contraseña de al menos 8 caracteres. La contraseña elegida se guarda como hash bcrypt y los datos se pueden copiar al terminar para entregárselos al médico; no se genera una contraseña automática. La cuenta queda vinculada al médico con rol MEDICO y acceso a su agenda y licencias. No requiere migraciones. Los médicos inactivos no pueden recibir nuevas cuentas; si ya existe una cuenta vinculada, se muestra su estado sin reemplazarla. Los cambios de contraseña o reactivaciones siguen a cargo del administrador en Usuarios.
 
 ## Actualizar una base anterior sin migraciones
 

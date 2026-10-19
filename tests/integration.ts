@@ -357,10 +357,14 @@ async function main() {
       },
     });
     const accesoUrl = `/api/medicos/${medicoSinAcceso.id}/acceso`;
+    const claveElegida = "Elegida-por-secretaria-2026!";
     await caso(
       "solo secretaría con permiso de médicos y administración crean accesos médicos",
       async () => {
-        const data = { email: "nuevo-medico@example.test" };
+        const data = {
+          email: "nuevo-medico@example.test",
+          password: claveElegida,
+        };
         assert.equal((await anon.post(accesoUrl, { data })).status(), 401);
         assert.equal((await doc.post(accesoUrl, { data })).status(), 403);
         assert.equal((await sec.get("/api/admin/usuarios")).status(), 403);
@@ -401,20 +405,33 @@ async function main() {
       },
     );
     await caso(
-      "la creación valida email, médico activo y rol fijo sin sustituir otras cuentas",
+      "la creación exige contraseña elegida válida, email, médico activo y rol fijo",
       async () => {
         for (const data of [
-          { email: "invalido" },
-          { email: "nuevo@example.test", rol: "ADMIN" },
-          { email: "nuevo@example.test", permisos: ["usuarios"] },
-          { email: "nuevo@example.test", medicoId: medico.id },
+          { email: "invalido", password: claveElegida },
+          { email: "nuevo@example.test" },
+          { email: "nuevo@example.test", password: "" },
+          { email: "nuevo@example.test", password: "corta" },
+          { email: "nuevo@example.test", password: "a".repeat(73) },
+          { email: "nuevo@example.test", password: "ñ".repeat(37) },
+          { email: "nuevo@example.test", password: claveElegida, rol: "ADMIN" },
+          {
+            email: "nuevo@example.test",
+            password: claveElegida,
+            permisos: ["usuarios"],
+          },
+          {
+            email: "nuevo@example.test",
+            password: claveElegida,
+            medicoId: medico.id,
+          },
         ]) {
           assert.equal((await sec.post(accesoUrl, { data })).status(), 400);
         }
         assert.equal(
           (
             await sec.post(accesoUrl, {
-              data: { email: " ADMIN@EXAMPLE.TEST " },
+              data: { email: " ADMIN@EXAMPLE.TEST ", password: claveElegida },
             })
           ).status(),
           409,
@@ -422,7 +439,7 @@ async function main() {
         assert.equal(
           (
             await sec.post("/api/medicos/no-existe/acceso", {
-              data: { email: "nuevo@example.test" },
+              data: { email: "nuevo@example.test", password: claveElegida },
             })
           ).status(),
           404,
@@ -435,7 +452,7 @@ async function main() {
           assert.equal(
             (
               await sec.post(accesoUrl, {
-                data: { email: "nuevo@example.test" },
+                data: { email: "nuevo@example.test", password: claveElegida },
               })
             ).status(),
             400,
@@ -460,35 +477,40 @@ async function main() {
       },
     );
     await caso(
-      "dos altas simultáneas crean una sola cuenta médica con contraseña válida y permisos limitados",
+      "dos altas simultáneas conservan la contraseña elegida y los permisos médicos",
       async () => {
         const responses = await Promise.all([
           sec.post(accesoUrl, {
-            data: { email: " NUEVO-MEDICO@EXAMPLE.TEST " },
+            data: {
+              email: " NUEVO-MEDICO@EXAMPLE.TEST ",
+              password: claveElegida,
+            },
           }),
-          sec.post(accesoUrl, { data: { email: "nuevo-medico@example.test" } }),
+          sec.post(accesoUrl, {
+            data: {
+              email: "nuevo-medico@example.test",
+              password: claveElegida,
+            },
+          }),
         ]);
         assert.deepEqual(responses.map((r) => r.status()).sort(), [201, 409]);
         const response = responses.find((r) => r.status() === 201)!;
         assert.match(response.headers()["cache-control"], /no-store/);
         const body = await response.json();
-        assert.deepEqual(Object.keys(body).sort(), [
-          "passwordInicial",
-          "usuario",
-        ]);
+        assert.deepEqual(Object.keys(body), ["usuario"]);
+        assert(!JSON.stringify(body).includes(claveElegida));
         assert.deepEqual(body.usuario, {
           email: "nuevo-medico@example.test",
           activo: true,
         });
-        assert(body.passwordInicial.length >= 16);
         const creado = await prisma.usuarioInterno.findUniqueOrThrow({
           where: { medicoId: medicoSinAcceso.id },
         });
         assert.equal(creado.rol, "MEDICO");
         assert.deepEqual(JSON.parse(creado.permisos!), ["agenda", "bloqueos"]);
-        assert.notEqual(creado.password, body.passwordInicial);
-        assert(await bcrypt.compare(body.passwordInicial, creado.password));
-        const nuevo = await cliente(creado.email, body.passwordInicial);
+        assert.notEqual(creado.password, claveElegida);
+        assert(await bcrypt.compare(claveElegida, creado.password));
+        const nuevo = await cliente(creado.email, claveElegida);
         const session = await (await nuevo.get("/api/auth/session")).json();
         assert.equal(session.user.rol, "MEDICO");
         assert.equal(session.user.medicoId, medicoSinAcceso.id);
@@ -498,7 +520,10 @@ async function main() {
         assert.equal(
           (
             await adm.post(accesoUrl, {
-              data: { email: "reemplazo@example.test" },
+              data: {
+                email: "reemplazo@example.test",
+                password: "OtraClave-2026!",
+              },
             })
           ).status(),
           409,
@@ -512,12 +537,12 @@ async function main() {
           await sec.get(`/medicos/${medicoSinAcceso.id}`)
         ).text();
         assert(html.includes("Este médico ya tiene acceso al panel"));
-        assert(!html.includes(body.passwordInicial));
+        assert(!html.includes(claveElegida));
         assert(!html.includes(creado.password));
       },
     );
     await caso(
-      "secretaría genera y entrega el acceso desde el perfil del médico en celular",
+      "secretaría escribe, confirma y entrega la contraseña del médico desde su panel en celular",
       async () => {
         const candidato = await prisma.medico.create({
           data: {
@@ -540,9 +565,42 @@ async function main() {
             exact: true,
           });
           assert.equal(await email.inputValue(), candidato.email);
+          const passwordInput = page.getByLabel("Contraseña para el médico *", {
+            exact: true,
+          });
+          const confirmarInput = page.getByLabel("Confirmar contraseña *", {
+            exact: true,
+          });
+          const elegidaEnPanel = "ClaveMedico-2026!";
+          assert.equal(await passwordInput.inputValue(), "");
+          assert.equal(await passwordInput.getAttribute("type"), "password");
+          await passwordInput.fill(elegidaEnPanel);
+          await confirmarInput.fill("ClaveDiferente-2026!");
+          await page
+            .getByRole("button", { name: "Crear acceso", exact: true })
+            .click();
+          await page
+            .getByRole("alert")
+            .filter({ hasText: "Las contraseñas no coinciden." })
+            .waitFor();
+          assert.equal(
+            await prisma.usuarioInterno.count({
+              where: { medicoId: candidato.id },
+            }),
+            0,
+          );
+          await confirmarInput.fill(elegidaEnPanel);
+          await page
+            .getByRole("button", { name: "Mostrar contraseña", exact: true })
+            .click();
+          assert.equal(await passwordInput.getAttribute("type"), "text");
+          assert.equal(await confirmarInput.getAttribute("type"), "text");
+          await page
+            .getByRole("button", { name: "Ocultar contraseña", exact: true })
+            .click();
           await page
             .getByRole("button", {
-              name: "Generar usuario y contraseña",
+              name: "Crear acceso",
               exact: true,
             })
             .click();
@@ -552,7 +610,12 @@ async function main() {
             })
             .waitFor();
           const secreto = await page.locator("dd.font-mono").innerText();
-          assert(secreto.length >= 16);
+          assert.equal(secreto, elegidaEnPanel);
+          const cuenta = await prisma.usuarioInterno.findUniqueOrThrow({
+            where: { medicoId: candidato.id },
+          });
+          assert(await bcrypt.compare(elegidaEnPanel, cuenta.password));
+          await cliente(cuenta.email, elegidaEnPanel);
           await page
             .getByRole("button", {
               name: "Copiar datos de acceso",
@@ -590,7 +653,7 @@ async function main() {
           assert.equal(
             await page
               .getByRole("button", {
-                name: "Generar usuario y contraseña",
+                name: "Crear acceso",
                 exact: true,
               })
               .count(),
