@@ -68,7 +68,7 @@ model Medico {
   email                String?
   duracionTurnoMinutos Int             @default(30)
   activo               Boolean         @default(true)
-  color                String          @default("#0f766e")
+  color                String          @default("#187e77")
   usuarioInterno       UsuarioInterno?
   horarios             HorarioMedico[]
   bloqueos             BloqueoMedico[]

@@ -114,30 +114,6 @@ export default async function Home() {
           <span>+</span>
         </div>
       </section>
-      {puedeAgenda && (
-        <div className="metric-grid">
-          {[
-            {
-              label: "Turnos de hoy",
-              value: activos.length,
-              icon: CalendarDays,
-              caption: "Consultas en la jornada",
-              color: "teal",
-            },
-          ].map(({ label, value, icon: Icon, caption, color }) => (
-            <article className="metric-card" key={label}>
-              <div>
-                <span>{label}</span>
-                <span className={`metric-icon ${color}`}>
-                  <Icon size={21} />
-                </span>
-              </div>
-              <strong>{value.toString().padStart(2, "0")}</strong>
-              <p>{caption}</p>
-            </article>
-          ))}
-        </div>
-      )}
       <div className="dashboard-columns">
         <section className="surface">
           <div className="surface-heading">
@@ -198,25 +174,51 @@ export default async function Home() {
             </div>
           )}
         </section>
-        <section className="surface quick-access">
-          <div className="surface-heading">
-            <div>
-              <h2>Accesos rápidos</h2>
-              <p>Lo que necesitás, más cerca</p>
+        <div className="dashboard-side">
+          {puedeAgenda && (
+            <div className="metric-grid">
+              {[
+                {
+                  label: "Turnos de hoy",
+                  value: activos.length,
+                  icon: CalendarDays,
+                  caption: "Consultas en la jornada",
+                  color: "teal",
+                },
+              ].map(({ label, value, icon: Icon, caption, color }) => (
+                <article className="metric-card" key={label}>
+                  <div>
+                    <span>{label}</span>
+                    <span className={`metric-icon ${color}`}>
+                      <Icon size={21} />
+                    </span>
+                  </div>
+                  <strong>{value.toString().padStart(2, "0")}</strong>
+                  <p>{caption}</p>
+                </article>
+              ))}
             </div>
-          </div>
-          {pantallas.map((p) => (
-            <Link key={p.key} href={p.href}>
-              <span>{p.label}</span>
-              <ArrowUpRight size={17} />
-            </Link>
-          ))}
-          {pantallas.length === 0 && (
-            <p className="p-6 text-sm text-neutral-500">
-              No tenés pantallas habilitadas todavía.
-            </p>
           )}
-        </section>
+          <section className="surface quick-access">
+            <div className="surface-heading">
+              <div>
+                <h2>Accesos rápidos</h2>
+                <p>Lo que necesitás, más cerca</p>
+              </div>
+            </div>
+            {pantallas.map((p) => (
+              <Link key={p.key} href={p.href}>
+                <span>{p.label}</span>
+                <ArrowUpRight size={17} />
+              </Link>
+            ))}
+            {pantallas.length === 0 && (
+              <p className="p-6 text-sm text-neutral-500">
+                No tenés pantallas habilitadas todavía.
+              </p>
+            )}
+          </section>
+        </div>
       </div>
     </div>
   );

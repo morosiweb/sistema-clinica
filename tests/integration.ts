@@ -1492,9 +1492,13 @@ async function main() {
                 0,
               );
               if (ruta === "/panel") {
+                await page
+                  .getByRole("button", { name: "Abrir menú", exact: true })
+                  .click();
                 const nav = page.getByRole("navigation", {
                   name: "Navegación principal",
                 });
+                await nav.waitFor({ state: "visible" });
                 assert.equal(
                   await nav
                     .getByRole("link", { name: "Usuarios", exact: true })
@@ -1507,6 +1511,7 @@ async function main() {
                     .count(),
                   perfil === "medico" ? 0 : 1,
                 );
+                await page.keyboard.press("Escape");
               }
               await page.screenshot({
                 path: `test-results/${perfil}-${ruta.replaceAll("/", "-")}-desktop.png`,

@@ -33,8 +33,17 @@ export function mensajeError(error: unknown) {
     ? error.message
     : "No se pudo conectar. Intentá nuevamente.";
 }
-export function useRecurso<T>(url: string | null, intervaloMs = 0) {
+export function useRecurso<T>(
+  url: string | null,
+  intervaloMs = 0,
+  evento?: string,
+) {
   const [revision, refrescar] = useReducer((v: number) => v + 1, 0);
+  useEffect(() => {
+    if (!evento || !url) return;
+    window.addEventListener(evento, refrescar);
+    return () => window.removeEventListener(evento, refrescar);
+  }, [evento, url]);
   const [estado, setEstado] = useState<{
     url: string;
     revision: number;
@@ -65,13 +74,7 @@ export function useRecurso<T>(url: string | null, intervaloMs = 0) {
           url: url!,
           revision,
           // Un fallo temporal no vacía el calendario. Un rechazo de acceso sí.
-          data:
-            intervaloMs > 0 &&
-            !sinAcceso &&
-            anterior?.url === url &&
-            anterior.revision === revision
-              ? anterior.data
-              : undefined,
+          data: !sinAcceso && anterior?.url === url ? anterior.data : undefined,
           error: mensajeError(error),
         }));
       } finally {
@@ -114,13 +117,19 @@ export function useRecurso<T>(url: string | null, intervaloMs = 0) {
       window.removeEventListener("offline", reanudar);
     };
   }, [url, revision, intervaloMs]);
-  const listo = estado?.url === url && estado.revision === revision;
+  // Conservar el contenido mientras se actualiza el mismo recurso evita
+  // desmontar formularios, perder el foco y mover la agenda al guardar.
+  const listo = estado?.url === url;
   return {
     data: listo ? estado.data : undefined,
     error: listo ? estado.error : undefined,
     cargando: !!url && !listo,
     refrescar,
   };
+}
+export const EVENTO_TURNOS = "clinica:turnos-cambiados";
+export function notificarTurnos() {
+  window.dispatchEvent(new Event(EVENTO_TURNOS));
 }
 const suscribirFecha = (listener: () => void) => {
   const id = setInterval(listener, 60000);

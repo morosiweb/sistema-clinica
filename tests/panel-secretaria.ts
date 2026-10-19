@@ -39,7 +39,7 @@ export async function pruebasPanel({
       apellido: "Color",
       especialidadId: especialidad.id,
       duracionTurnoMinutos: 15,
-      color: "#7c3aed",
+      color: "#526f88",
     },
   });
   const dias = [
@@ -339,7 +339,7 @@ export async function pruebasPanel({
         especialidadId: especialidad.id,
         duracionTurnoMinutos: 15,
         activo: true,
-        color: "#1d4ed8",
+        color: "#658b70",
       };
       assert.equal(
         (await sec.patch(`/api/medicos/${medico.id}`, { data })).status(),
@@ -357,14 +357,14 @@ export async function pruebasPanel({
         data: { ...data, nombre: "Segundo", color: undefined },
       });
       assert.equal(nuevoMedico.status(), 201);
-      assert.notEqual((await nuevoMedico.json()).color, "#1d4ed8");
+      assert.notEqual((await nuevoMedico.json()).color, "#658b70");
       const listado = await (
         await sec.get(`/api/turnos/calendario?desde=${fecha}&hasta=${fecha}`)
       ).json();
       const turno = listado.find((t: { pacienteNombre: string }) =>
         t.pacienteNombre.includes("Paciente Calendario"),
       );
-      assert.equal(turno.medicoColor, "#1d4ed8");
+      assert.equal(turno.medicoColor, "#658b70");
       assert.equal(turno.version, 0);
       assert.equal(turno.pacienteTelefono, nuevo.telefono);
     },
@@ -408,9 +408,45 @@ export async function pruebasPanel({
           .waitFor({ state: "visible" });
         assert(
           await page.evaluate(
-            () => parseFloat(getComputedStyle(document.body).fontSize) >= 17,
+            () => parseFloat(getComputedStyle(document.body).fontSize) === 16,
           ),
         );
+        const metric = await page.locator(".metric-card").boundingBox();
+        const accesos = await page.locator(".quick-access").boundingBox();
+        const agenda = await page
+          .locator(".dashboard-columns > .surface")
+          .boundingBox();
+        assert(metric && accesos && agenda);
+        assert(Math.abs(metric.width - accesos.width) < 1);
+        assert(Math.abs(metric.x - accesos.x) < 1);
+        assert(metric.y + metric.height < accesos.y);
+        assert(accesos.width > 300 && agenda.width > accesos.width);
+        assert(Math.abs(metric.y - agenda.y) < 1);
+        const mainBefore = await page.locator(".staff-main").boundingBox();
+        assert.equal(
+          await page.locator(".sidebar").getAttribute("aria-hidden"),
+          "true",
+        );
+        await page.mouse.move(2, 400);
+        await page.waitForFunction(
+          () =>
+            document.querySelector(".sidebar")?.getAttribute("aria-hidden") ===
+            "false",
+        );
+        assert.deepEqual(
+          await page.locator(".staff-main").boundingBox(),
+          mainBefore,
+        );
+        await page.mouse.move(600, 400);
+        await page.waitForFunction(
+          () =>
+            document.querySelector(".sidebar")?.getAttribute("aria-hidden") ===
+            "true",
+        );
+        await page.screenshot({
+          path: "test-results/inicio-ajustes.png",
+          fullPage: true,
+        });
         await page.goto(`${baseURL}/turnos`);
         await page.getByLabel("Fecha", { exact: true }).fill(fecha);
         await page.getByLabel("Vista", { exact: true }).selectOption("semana");
@@ -422,6 +458,24 @@ export async function pruebasPanel({
           await tarjeta.evaluate((el) => getComputedStyle(el).backgroundColor),
           "rgb(236, 239, 242)",
         );
+        let recargas = 0;
+        page.on("request", (request) => {
+          const url = new URL(request.url());
+          if (
+            url.pathname === "/turnos" &&
+            (request.isNavigationRequest() || request.headers()["rsc"] === "1")
+          )
+            recargas++;
+        });
+        // Demorar la actualización de datos comprueba que la agenda anterior
+        // permanece montada mientras llegan los cambios, sin pantalla de carga.
+        await page.route("**/api/turnos/calendario?**", async (route) => {
+          await new Promise((resolve) => setTimeout(resolve, 250));
+          await route.continue();
+        });
+        await tarjeta.evaluate((el) =>
+          el.setAttribute("data-conservado", "si"),
+        );
         await tarjeta
           .getByRole("button", { name: /^Confirmar turno de/ })
           .click();
@@ -431,6 +485,15 @@ export async function pruebasPanel({
           )
           .waitFor();
         assert.equal(await tarjeta.locator(".event-actions").count(), 0);
+        assert.equal(await tarjeta.getAttribute("data-conservado"), "si");
+        assert.equal(
+          await page.getByLabel("Vista", { exact: true }).inputValue(),
+          "semana",
+        );
+        assert.equal(
+          await page.getByLabel("Fecha", { exact: true }).inputValue(),
+          fecha,
+        );
         await page
           .locator(`a[href="/turnos/${pendiente.id}"]`)
           .getByText("Confirmado", { exact: true })
@@ -452,6 +515,13 @@ export async function pruebasPanel({
           .getByText("Cancelado", { exact: true })
           .waitFor();
         assert((await aviso.innerText()).includes(nuevo.telefono));
+        assert.equal(
+          recargas,
+          0,
+          "Confirmar y cancelar usan actualizaciones locales, sin pedir de nuevo la página",
+        );
+        assert.equal((await anon.get("/api/turnos/recientes")).status(), 401);
+        assert.equal((await doc.get("/api/turnos/recientes")).status(), 403);
         assert.equal(
           await aviso
             .getByRole("link", { name: nuevo.telefono, exact: true })

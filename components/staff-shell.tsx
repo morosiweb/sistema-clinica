@@ -53,17 +53,29 @@ export function StaffShell({
   const sidebar = useRef<HTMLElement>(null);
   const menu = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    if (!open || !window.matchMedia("(max-width: 800px)").matches) return;
+    const media = window.matchMedia("(max-width: 800px)");
+    const cerrar = () => setOpen(false);
+    media.addEventListener("change", cerrar);
+    return () => media.removeEventListener("change", cerrar);
+  }, []);
+  useEffect(() => {
+    if (!open) return;
+    const mobile = window.matchMedia("(max-width: 800px)").matches;
     const previousOverflow = document.body.style.overflow;
     const menuButton = menu.current;
-    document.body.style.overflow = "hidden";
-    sidebar.current?.querySelector<HTMLButtonElement>(".mobile-close")?.focus();
+    if (mobile) {
+      document.body.style.overflow = "hidden";
+      sidebar.current
+        ?.querySelector<HTMLButtonElement>(".mobile-close")
+        ?.focus();
+    }
     function onKey(event: KeyboardEvent) {
       if (event.key === "Escape") {
         setOpen(false);
+        menuButton?.focus();
         return;
       }
-      if (event.key !== "Tab") return;
+      if (event.key !== "Tab" || !mobile) return;
       const elements = Array.from(
         sidebar.current?.querySelectorAll<HTMLElement>(
           "a[href], button:not(:disabled)",
@@ -84,7 +96,7 @@ export function StaffShell({
     return () => {
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", onKey);
-      menuButton?.focus();
+      if (mobile) menuButton?.focus();
     };
   }, [open]);
   const actual =
@@ -94,6 +106,26 @@ export function StaffShell({
       <a href="#contenido" className="skip-link">
         Ir al contenido
       </a>
+      <button
+        className="sidebar-edge"
+        aria-label="Mostrar menú lateral"
+        aria-expanded={open}
+        aria-controls="menu-lateral"
+        onPointerEnter={(event) => {
+          if (event.pointerType === "mouse") setOpen(true);
+        }}
+        onPointerLeave={(event) => {
+          if (
+            event.pointerType === "mouse" &&
+            !(
+              event.relatedTarget instanceof Node &&
+              sidebar.current?.contains(event.relatedTarget)
+            )
+          )
+            setOpen(false);
+        }}
+        onClick={() => setOpen(true)}
+      />
       {open && (
         <button
           className="sidebar-backdrop"
@@ -102,9 +134,26 @@ export function StaffShell({
         />
       )}
       <aside
+        id="menu-lateral"
         ref={sidebar}
         className={`sidebar ${open ? "sidebar-open" : ""}`}
         aria-label="Menú del sistema"
+        aria-hidden={!open}
+        inert={!open}
+        onPointerLeave={(event) => {
+          if (
+            event.pointerType === "mouse" &&
+            !sidebar.current?.contains(document.activeElement)
+          )
+            setOpen(false);
+        }}
+        onBlur={(event) => {
+          if (
+            !event.currentTarget.contains(event.relatedTarget) &&
+            !event.currentTarget.matches(":hover")
+          )
+            setOpen(false);
+        }}
       >
         <div className="sidebar-brand">
           <Brand light href="/panel" />
@@ -185,6 +234,7 @@ export function StaffShell({
               className="mobile-menu icon-btn"
               aria-label="Abrir menú"
               aria-expanded={open}
+              aria-controls="menu-lateral"
               onClick={() => setOpen(true)}
             >
               <Menu size={21} />

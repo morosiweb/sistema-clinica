@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { COLORES_MEDICOS } from "@/lib/colores-medicos";
 
 export type MedicoFormValues = {
   nombre: string;
@@ -213,18 +214,27 @@ export function MedicoForm({
         Activo
       </label>
 
-      <label className="flex items-center gap-3 text-sm">
-        Color en el calendario
-        <input
-          type="color"
-          aria-label="Color del médico"
-          value={valores.color || "#0f766e"}
-          onChange={(e) => setValores((v) => ({ ...v, color: e.target.value }))}
-        />
+      <fieldset className="space-y-2 text-sm">
+        <legend>Color en el calendario</legend>
+        <div className="doctor-palette">
+          {COLORES_MEDICOS.map((color, index) => (
+            <label key={color} style={{ backgroundColor: color }}>
+              <input
+                type="radio"
+                name="colorMedico"
+                aria-label={`Color del médico ${index + 1}`}
+                value={color}
+                checked={valores.color === color}
+                onChange={() => setValores((v) => ({ ...v, color }))}
+              />
+              <span aria-hidden="true">✓</span>
+            </label>
+          ))}
+        </div>
         {!valores.color && (
           <span>Se asigna un color disponible al guardar.</span>
         )}
-      </label>
+      </fieldset>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 

@@ -25,7 +25,7 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), sans-serif;
-  font-size: 17px;
+  font-size: 16px;
   line-height: 1.55;
 }
 button,
@@ -94,7 +94,7 @@ svg {
   padding: 12px 22px;
   border-radius: 9px;
   font-weight: 600;
-  font-size: 17px;
+  font-size: 16px;
   line-height: 1.5;
   transition: 0.18s;
   text-decoration: none;
@@ -122,7 +122,7 @@ svg {
 .btn-small {
   min-height: 40px;
   padding: 9px 16px;
-  font-size: 16px;
+  font-size: 15px;
 }
 .icon-btn {
   display: inline-flex;
@@ -159,7 +159,7 @@ svg {
   align-items: center;
   gap: 7px;
   color: var(--teal);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 550;
 }
 .text-link:hover {
@@ -244,7 +244,7 @@ svg {
   display: flex;
   align-items: center;
   gap: 27px;
-  font-size: 16px;
+  font-size: 15px;
 }
 .public-header .staff-link {
   color: var(--muted);
@@ -291,7 +291,7 @@ svg {
 .hero-description {
   max-width: 420px;
   color: var(--muted);
-  font-size: 18px;
+  font-size: 17px;
   line-height: 1.85;
 }
 .hero-actions {
@@ -413,7 +413,7 @@ svg {
 }
 .art-note strong {
   display: block;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
 }
 .art-note div > span {
@@ -453,7 +453,7 @@ svg {
   margin-top: 10px;
 }
 .section-heading > p {
-  font-size: 15px;
+  font-size: 14px;
   color: var(--muted);
   line-height: 1.8;
 }
@@ -480,13 +480,13 @@ svg {
   color: #91a398;
 }
 .journey-grid h3 {
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 550;
   margin-bottom: 10px;
   letter-spacing: -0.3px;
 }
 .journey-grid p {
-  font-size: 15px;
+  font-size: 14px;
   color: var(--muted);
   line-height: 1.8;
   max-width: 250px;
@@ -516,7 +516,7 @@ svg {
 }
 .manage-banner p:not(.eyebrow) {
   max-width: 470px;
-  font-size: 15px;
+  font-size: 14px;
   color: #b8cccd;
   line-height: 1.9;
 }
@@ -541,7 +541,7 @@ svg {
 }
 .booking-intro > p:last-child {
   color: var(--muted);
-  font-size: 16px;
+  font-size: 15px;
 }
 .greeting-dot {
   color: var(--teal);
@@ -632,12 +632,12 @@ svg {
   margin: 6px 0;
 }
 .booking-card-heading > p {
-  font-size: 16px;
+  font-size: 15px;
   color: var(--muted);
 }
 .field-label {
   display: block;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 550;
   color: #3a535d;
 }
@@ -650,7 +650,7 @@ svg {
   min-height: 45px;
   border-radius: 8px;
   margin-top: 7px;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 400;
   color: var(--ink);
   box-shadow: 0 1px 2px #16373f03;
@@ -707,17 +707,17 @@ svg {
   border: 1px solid #dce9e1;
   color: #43816d;
   font-weight: 550;
-  font-size: 17px;
+  font-size: 16px;
   border-radius: 50%;
 }
 .doctor-option strong {
   display: block;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 550;
 }
 .doctor-option small {
   display: block;
-  font-size: 16px;
+  font-size: 15px;
   color: var(--muted);
   margin-top: 3px;
 }
@@ -744,7 +744,7 @@ svg {
   border-bottom: 1px solid #e2e9e1;
 }
 .summary-title h2 {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
 }
 .summary-doctor {
@@ -755,12 +755,12 @@ svg {
 }
 .summary-doctor strong {
   display: block;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 550;
 }
 .summary-doctor div > span {
   display: block;
-  font-size: 15px;
+  font-size: 14px;
   color: var(--muted);
   margin-top: 4px;
 }
@@ -781,7 +781,7 @@ svg {
 }
 .booking-summary dd {
   margin: 5px 0 0 23px;
-  font-size: 15px;
+  font-size: 14px;
   text-transform: capitalize;
   font-weight: 500;
 }
@@ -809,7 +809,7 @@ svg {
   margin: auto auto 14px;
 }
 .summary-placeholder p {
-  font-size: 16px;
+  font-size: 15px;
   color: #466458;
   margin-bottom: 5px;
 }
@@ -861,7 +861,7 @@ svg {
   text-transform: capitalize;
 }
 .date-options strong {
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 500;
   margin-top: 3px;
 }
@@ -878,7 +878,7 @@ svg {
   margin-bottom: 15px;
 }
 .slots-heading h3 {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 550;
 }
 .slots-heading > span {
@@ -897,7 +897,7 @@ svg {
   border-radius: 7px;
   min-height: 43px;
   color: #346650;
-  font-size: 16px;
+  font-size: 15px;
   font-variant-numeric: tabular-nums;
 }
 .time-slot:hover {
@@ -958,7 +958,7 @@ svg {
 }
 .help-text {
   color: var(--muted);
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.8;
 }
 .booking-success {
@@ -985,7 +985,7 @@ svg {
   letter-spacing: -1px;
 }
 .booking-success > p:not(.eyebrow) {
-  font-size: 16px;
+  font-size: 15px;
   color: var(--muted);
   line-height: 1.9;
   max-width: 400px;
@@ -1022,7 +1022,7 @@ svg {
 .login-story > div > p:not(.eyebrow) {
   max-width: 340px;
   color: #b6c9cc;
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1.9;
 }
 .login-art {
@@ -1070,7 +1070,7 @@ svg {
   margin: 9px 0;
 }
 .login-form-wrap > .muted {
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.8;
   margin-bottom: 30px;
 }
@@ -1105,7 +1105,7 @@ svg {
 }
 .recovery-story > p:not(.eyebrow) {
   color: var(--muted);
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1.9;
 }
 .recovery-points {
@@ -1121,7 +1121,7 @@ svg {
 }
 .recovery-points strong {
   display: block;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 550;
   color: var(--ink);
 }
@@ -1145,7 +1145,7 @@ svg {
 }
 .recovery-card > p {
   margin-bottom: 25px;
-  font-size: 15px;
+  font-size: 14px;
   color: var(--muted);
 }
 .recovery-card .help-text {
@@ -1190,7 +1190,7 @@ svg {
   padding: 10px 14px;
   margin-bottom: 4px;
   border-radius: 7px;
-  font-size: 17px;
+  font-size: 16px;
   color: #b5cbd1;
 }
 .nav-item:hover {
@@ -1333,7 +1333,7 @@ svg {
   min-height: 100vh;
   display: grid;
   place-items: center;
-  font-size: 17px;
+  font-size: 16px;
   color: var(--muted);
 }
 .page-heading {
@@ -1351,7 +1351,7 @@ svg {
   margin: 6px 0;
 }
 .page-heading p:not(.eyebrow) {
-  font-size: 15px;
+  font-size: 14px;
   color: var(--muted);
   margin-top: 7px;
 }
@@ -1431,7 +1431,7 @@ svg {
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  font-size: 15px;
+  font-size: 14px;
   color: #6a8089;
 }
 .metric-icon {
@@ -1487,12 +1487,12 @@ svg {
   border-bottom: 1px solid #edf1f3;
 }
 .surface-heading h2 {
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 600;
 }
 .surface-heading p {
   margin-top: 4px;
-  font-size: 15px;
+  font-size: 14px;
   color: #81959e;
 }
 .surface-heading .text-link {
@@ -1508,13 +1508,13 @@ svg {
 }
 .empty-state h3 {
   color: #4f6a71;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 500;
   margin-bottom: 7px;
 }
 .empty-state p {
   color: #8a9b9e;
-  font-size: 16px;
+  font-size: 15px;
 }
 .quick-access > a {
   display: flex;
@@ -1523,7 +1523,7 @@ svg {
   padding: 13px 22px;
   border-bottom: 1px solid #f1f4f4;
   color: #526d77;
-  font-size: 16px;
+  font-size: 15px;
 }
 .quick-access > a:last-child {
   border-bottom: 0;
@@ -1546,7 +1546,7 @@ svg {
   background: #f8fbf9;
 }
 .appointment-time {
-  font-size: 15px;
+  font-size: 14px;
   color: #496570;
   font-weight: 550;
   font-variant-numeric: tabular-nums;
@@ -1645,7 +1645,7 @@ svg {
   flex-wrap: wrap;
 }
 .record-page h2 {
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 550;
   letter-spacing: -0.2px;
 }
@@ -1661,7 +1661,7 @@ svg {
   min-height: 42px;
   padding: 10px 12px;
   color: #38545f;
-  font-size: 15px;
+  font-size: 14px;
 }
 .record-page input:focus,
 .record-page select:focus,
@@ -1679,7 +1679,7 @@ input[type="radio"] {
 }
 .record-page label {
   color: #536b75;
-  font-size: 15px;
+  font-size: 14px;
 }
 .record-page .bg-neutral-900 {
   background: var(--teal);
@@ -1705,7 +1705,7 @@ input[type="radio"] {
   padding: 19px 22px;
   border-color: #edf1f3;
   gap: 20px;
-  font-size: 15px;
+  font-size: 14px;
 }
 .record-page .divide-y > a:hover {
   background: #f6faf8;
@@ -1759,7 +1759,7 @@ input[type="radio"] {
 }
 .record-description {
   color: var(--muted);
-  font-size: 15px;
+  font-size: 14px;
   margin-top: 7px;
 }
 .patient-dashboard {
@@ -1776,7 +1776,7 @@ input[type="radio"] {
   margin-bottom: 30px;
 }
 .patient-dashboard > h2 {
-  font-size: 18px;
+  font-size: 17px;
   letter-spacing: -0.4px;
   margin: 28px 0 18px;
 }
@@ -1790,17 +1790,17 @@ input[type="radio"] {
 .patient-dashboard article > p:first-child {
   color: var(--teal);
   font-weight: 550;
-  font-size: 17px;
+  font-size: 16px;
 }
 .patient-dashboard article > p:nth-child(2) {
-  font-size: 16px;
+  font-size: 15px;
   color: #536e77;
 }
 .patient-dashboard article > div.flex {
   margin-top: 16px;
   padding-top: 15px;
   border-top: 1px solid #edf2ed;
-  font-size: 15px;
+  font-size: 14px;
 }
 .patient-dashboard > nav {
   margin-top: 25px;
@@ -1909,7 +1909,7 @@ input[type="radio"] {
   align-items: center;
   justify-content: center;
   border-bottom: 1px solid var(--line);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 500;
   color: #55766f;
   background: #fcfdfc;
@@ -1943,7 +1943,7 @@ button.calendar-line:hover {
   border-radius: 6px;
   background: #edf6f0;
   color: #426e5a;
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.45;
 }
 .calendar-event:hover {
@@ -2040,7 +2040,7 @@ button.calendar-line:hover {
   background: #d4ad94;
 }
 .loading-state {
-  font-size: 15px;
+  font-size: 14px;
   color: var(--muted);
   text-align: center;
   padding: 35px;
@@ -2057,7 +2057,7 @@ button.calendar-line:hover {
     font-size: 48px;
   }
   .hero-actions .btn {
-    font-size: 15px;
+    font-size: 14px;
     padding: 11px 15px;
   }
   .art-arch {
@@ -2179,7 +2179,7 @@ button.calendar-line:hover {
     font-size: 14px;
   }
   .summary-doctor strong {
-    font-size: 16px;
+    font-size: 15px;
   }
   .booking-card {
     padding: 23px;
@@ -2271,7 +2271,7 @@ button.calendar-line:hover {
     margin: 20px 0;
   }
   .hero-description {
-    font-size: 16px;
+    font-size: 15px;
     max-width: 360px;
   }
   .hero-actions {
@@ -2385,11 +2385,11 @@ button.calendar-line:hover {
     margin-bottom: 18px;
   }
   .journey-grid h3 {
-    font-size: 18px;
+    font-size: 17px;
   }
   .journey-grid p {
     max-width: none;
-    font-size: 15px;
+    font-size: 14px;
   }
   .manage-banner {
     margin: 0 20px 35px;
@@ -2403,7 +2403,7 @@ button.calendar-line:hover {
     font-size: 28px;
   }
   .manage-banner .btn {
-    font-size: 15px;
+    font-size: 14px;
   }
   .public-footer {
     padding: 23px 20px;
@@ -2453,7 +2453,7 @@ button.calendar-line:hover {
     font-size: 22px;
   }
   .booking-card-heading > p {
-    font-size: 16px;
+    font-size: 15px;
   }
   .booking-aside {
     position: static;
@@ -2465,7 +2465,7 @@ button.calendar-line:hover {
     margin: 18px 4px;
   }
   .booking-help strong {
-    font-size: 15px;
+    font-size: 14px;
   }
   .booking-help p {
     font-size: 14px;
@@ -2476,10 +2476,10 @@ button.calendar-line:hover {
   .summary-doctor .doctor-avatar {
     width: 40px;
     height: 40px;
-    font-size: 15px;
+    font-size: 14px;
   }
   .summary-doctor strong {
-    font-size: 16px;
+    font-size: 15px;
   }
   .summary-title {
     padding: 17px 22px;
@@ -2493,13 +2493,13 @@ button.calendar-line:hover {
     font-size: 14px;
   }
   .booking-aside > .text-link {
-    font-size: 15px;
+    font-size: 14px;
   }
   .slot-grid {
     gap: 8px;
   }
   .time-slot {
-    font-size: 15px;
+    font-size: 14px;
   }
   .slots-heading > span {
     font-size: 13px;
@@ -2514,7 +2514,7 @@ button.calendar-line:hover {
     width: 100%;
   }
   .booking-card .muted {
-    font-size: 15px;
+    font-size: 14px;
   }
   .otp-input {
     max-width: 100%;
@@ -2643,7 +2643,7 @@ button.calendar-line:hover {
     border-radius: 9px;
   }
   .metric-card > div {
-    font-size: 15px;
+    font-size: 14px;
     min-height: 30px;
     align-items: start;
   }
@@ -2666,10 +2666,10 @@ button.calendar-line:hover {
     padding: 18px;
   }
   .surface-heading h2 {
-    font-size: 19px;
+    font-size: 18px;
   }
   .surface-heading p {
-    font-size: 15px;
+    font-size: 14px;
   }
   .quick-access > a {
     padding: 13px 18px;
@@ -2718,7 +2718,7 @@ button.calendar-line:hover {
     align-items: start;
     flex-direction: column;
     gap: 5px;
-    font-size: 15px;
+    font-size: 14px;
   }
   .record-page .divide-y > a > span:last-child {
     font-size: 14px;
@@ -2795,7 +2795,7 @@ button.calendar-line:hover {
   }
   .calendar-mobile-event > span:nth-child(2) {
     flex: 1;
-    font-size: 15px;
+    font-size: 14px;
   }
   .calendar-mobile-event .status-badge {
     font-size: 13px;
@@ -2820,13 +2820,13 @@ button.calendar-line:hover {
     min-height: 39px;
   }
   .patient-dashboard > h2 {
-    font-size: 17px;
-  }
-  .patient-dashboard article > p:first-child {
     font-size: 16px;
   }
-  .patient-dashboard article > p:nth-child(2) {
+  .patient-dashboard article > p:first-child {
     font-size: 15px;
+  }
+  .patient-dashboard article > p:nth-child(2) {
+    font-size: 14px;
   }
   .patient-dashboard article > div.flex {
     font-size: 14px;
@@ -2857,7 +2857,7 @@ button.calendar-line:hover {
   border-bottom: 1px solid var(--line);
 }
 .directory-row {
-  font-size: 16px;
+  font-size: 15px;
   border-bottom: 1px solid #edf2f1;
 }
 .directory-row:last-child {
@@ -2877,12 +2877,12 @@ button.calendar-line:hover {
 }
 .directory-contact {
   color: #7d939b;
-  font-size: 15px;
+  font-size: 14px;
   overflow-wrap: anywhere;
 }
 .directory-document {
   color: #6b838e;
-  font-size: 15px;
+  font-size: 14px;
 }
 .directory-arrow {
   color: #95ada6;
@@ -2900,11 +2900,11 @@ button.calendar-line:hover {
   background: linear-gradient(110deg, #eef5ef, #f7faf7);
   border: 1px solid #dce7df;
   border-radius: 12px;
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1.9;
 }
 .consultation-summary > p:first-child {
-  font-size: 18px;
+  font-size: 17px;
   letter-spacing: -0.4px;
   margin-bottom: 7px;
 }
@@ -2935,12 +2935,12 @@ button.calendar-line:hover {
   .directory-contact {
     grid-column: 1;
     padding-left: 42px;
-    font-size: 15px;
+    font-size: 14px;
   }
   .directory-document {
     grid-column: 1;
     padding-left: 42px;
-    font-size: 15px;
+    font-size: 14px;
   }
   .directory-arrow {
     grid-column: 2;
@@ -2950,7 +2950,7 @@ button.calendar-line:hover {
     padding: 20px;
   }
   .consultation-summary > p:first-child {
-    font-size: 19px;
+    font-size: 18px;
   }
   .clinical-detail > div:not(.consultation-summary) {
     padding: 19px;
@@ -2991,13 +2991,13 @@ button.calendar-line:hover {
 }
 .professional-name strong {
   display: block;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 550;
 }
 .professional-name > span {
   display: block;
   color: var(--muted);
-  font-size: 15px;
+  font-size: 14px;
   margin-top: 4px;
 }
 .professional-status {
@@ -3039,7 +3039,7 @@ button.calendar-line:hover {
   .record-page input:not([type="checkbox"]):not([type="radio"]),
   .record-page select,
   .record-page textarea {
-    font-size: 19px;
+    font-size: 18px;
   }
   .metric-card > div {
     font-size: 14px;
@@ -3075,10 +3075,10 @@ button.calendar-line:hover {
     margin-top: 4px;
   }
   .metric-card > div {
-    font-size: 15px;
+    font-size: 14px;
   }
   .booking-card-heading > p {
-    font-size: 16px;
+    font-size: 15px;
   }
   .hero-assurance {
     font-size: 14px;
@@ -3089,16 +3089,16 @@ button.calendar-line:hover {
     margin-top: 3px;
   }
   .hero-description {
-    font-size: 18px;
+    font-size: 17px;
   }
   .journey-grid p {
-    font-size: 17px;
-  }
-  .section-heading > p {
     font-size: 16px;
   }
+  .section-heading > p {
+    font-size: 15px;
+  }
   .manage-banner p:not(.eyebrow) {
-    font-size: 17px;
+    font-size: 16px;
   }
 }
 @media (max-width: 360px) {
@@ -3171,7 +3171,7 @@ button.calendar-line:hover {
 
 /* Lectura y operación del panel */
 html {
-  font-size: 18px;
+  font-size: 17px;
 }
 @theme {
   --text-xs: 0.83rem;
@@ -3292,7 +3292,7 @@ html {
   font-weight: 700;
 }
 .event-name {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   overflow-wrap: anywhere;
 }
@@ -3337,7 +3337,7 @@ html {
 }
 .week-event.appointment-event {
   padding: 10px;
-  font-size: 16px;
+  font-size: 15px;
 }
 .calendar-mobile-event.appointment-event {
   display: flex;
@@ -3356,7 +3356,7 @@ html {
   gap: 8px;
   font-weight: 600;
   padding-top: 8px;
-  font-size: 17px;
+  font-size: 16px;
   overflow-wrap: anywhere;
 }
 .cancelled-event {
@@ -3447,5 +3447,126 @@ html {
   .login-back {
     top: 12px;
     right: 14px;
+  }
+}
+
+/* El menú se superpone: abrirlo no mueve la pantalla de trabajo. */
+.staff-app .sidebar {
+  transform: translateX(-100%);
+  visibility: hidden;
+  transition:
+    transform 180ms ease,
+    visibility 180ms;
+  box-shadow: 8px 0 30px #15333e24;
+}
+.staff-app .sidebar-open {
+  transform: translateX(0);
+  visibility: visible;
+}
+.staff-app .staff-main {
+  margin-left: 10px;
+}
+.staff-app .mobile-menu,
+.staff-app .mobile-close {
+  display: inline-flex;
+}
+.staff-app .sidebar-brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sidebar-edge {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: 10px;
+  background: var(--navy);
+  z-index: 39;
+  border: 0;
+  cursor: pointer;
+}
+.sidebar-edge::after {
+  content: "";
+  position: absolute;
+  width: 3px;
+  height: 42px;
+  border-radius: 3px;
+  background: #88c6b1;
+  top: calc(50% - 21px);
+  left: 3px;
+}
+.sidebar-edge:focus-visible {
+  outline: 3px solid var(--teal);
+  outline-offset: 2px;
+}
+.dashboard .dashboard-columns {
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+  align-items: start;
+}
+.dashboard-side {
+  display: grid;
+  gap: 22px;
+  min-width: 0;
+}
+.dashboard-side .metric-grid {
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0;
+}
+.dashboard-side .quick-access {
+  width: 100%;
+}
+.doctor-palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.doctor-palette label {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.doctor-palette input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.doctor-palette span {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  color: white;
+  opacity: 0;
+  border-radius: inherit;
+}
+.doctor-palette input:checked + span {
+  opacity: 1;
+  box-shadow:
+    0 0 0 2px white,
+    0 0 0 4px var(--navy);
+}
+.doctor-palette label:focus-within {
+  outline: 2px solid var(--navy);
+  outline-offset: 4px;
+}
+@media (max-width: 800px) {
+  .sidebar-edge {
+    display: none;
+  }
+  .staff-app .staff-main {
+    margin-left: 0;
+  }
+  .dashboard .dashboard-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .staff-app .sidebar {
+    transition: none;
   }
 }

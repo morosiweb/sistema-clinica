@@ -10,7 +10,13 @@ import {
 } from "lucide-react";
 import { useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
-import { useHoy, useRecurso, fetchJSON, mensajeError } from "@/lib/cliente";
+import {
+  useHoy,
+  useRecurso,
+  fetchJSON,
+  mensajeError,
+  notificarTurnos,
+} from "@/lib/cliente";
 import { sumarDias } from "@/lib/fecha";
 
 type TurnoCal = {
@@ -80,7 +86,7 @@ function TarjetaTurno({
       style={
         {
           ...style,
-          "--medico-color": t.medicoColor || "#0f766e",
+          "--medico-color": t.medicoColor || "#187e77",
         } as CSSProperties
       }
     >
@@ -182,7 +188,7 @@ export function CalendarioTurnos({
           nombre: "Mi",
           apellido: "agenda",
           activo: true,
-          color: "#0f766e",
+          color: "#187e77",
         },
       ];
   const activos = turnos.filter((t) => t.estado !== "CANCELADO"),
@@ -218,7 +224,7 @@ export function CalendarioTurnos({
       });
       if (estado === "CANCELADO") setCanceladoReciente({ ...t, estado });
       recurso.refrescar();
-      router.refresh();
+      notificarTurnos();
     } catch (e) {
       setError(mensajeError(e));
       recurso.refrescar();
