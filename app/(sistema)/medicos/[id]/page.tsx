@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { parsePermisos, puedeVer } from "@/lib/pantallas";
 import { MedicoForm } from "@/components/medico-form";
 import { HorarioManager } from "@/components/horario-manager";
+import { MedicoAcceso } from "@/components/medico-acceso";
 
 export const instant = false;
 
@@ -28,7 +29,13 @@ export default async function EditarMedicoPage({
 
   const { id } = await params;
   const [medico, especialidades] = await Promise.all([
-    prisma.medico.findUnique({ where: { id }, include: { horarios: true } }),
+    prisma.medico.findUnique({
+      where: { id },
+      include: {
+        horarios: true,
+        usuarioInterno: { select: { email: true, activo: true } },
+      },
+    }),
     prisma.especialidad.findMany({
       select: { id: true, nombre: true },
       orderBy: { nombre: "asc" },
@@ -54,6 +61,14 @@ export default async function EditarMedicoPage({
           duracionTurnoMinutos: medico.duracionTurnoMinutos,
           activo: medico.activo,
         }}
+      />
+
+      <MedicoAcceso
+        medicoId={medico.id}
+        nombre={`${medico.nombre} ${medico.apellido}`}
+        emailMedico={medico.email ?? ""}
+        activo={medico.activo}
+        cuenta={medico.usuarioInterno}
       />
 
       <div className="mt-10">

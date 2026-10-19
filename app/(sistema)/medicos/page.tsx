@@ -23,7 +23,10 @@ export default async function MedicosPage() {
   }
 
   const medicos = await prisma.medico.findMany({
-    include: { especialidad: true },
+    include: {
+      especialidad: true,
+      usuarioInterno: { select: { activo: true } },
+    },
     orderBy: { apellido: "asc" },
   });
 
@@ -31,7 +34,7 @@ export default async function MedicosPage() {
     <div className="record-page">
       <PageHeading
         title="Médicos"
-        description="El equipo profesional y la configuración de sus agendas."
+        description="El equipo profesional, sus agendas y accesos al panel."
         action={{ href: "/medicos/nuevo", label: "Nuevo médico" }}
       />
 
@@ -50,7 +53,10 @@ export default async function MedicosPage() {
               <strong>
                 {m.apellido}, {m.nombre}
               </strong>
-              <span>{m.especialidad.nombre}</span>
+              <span>
+                {m.especialidad.nombre} · {m.duracionTurnoMinutos} min por
+                consulta
+              </span>
             </span>
             <span
               className={`professional-status ${m.activo ? "" : "professional-inactive"}`}
@@ -58,8 +64,12 @@ export default async function MedicosPage() {
               {m.activo ? "Activo" : "Inactivo"}
             </span>
             <span className="professional-card-footer">
-              {m.duracionTurnoMinutos} min por consulta{" "}
-              <span>Ver perfil y agenda ↗</span>
+              {m.usuarioInterno
+                ? m.usuarioInterno.activo
+                  ? "Acceso al panel activo"
+                  : "Acceso al panel inactivo"
+                : "Sin acceso al panel"}{" "}
+              <span>Ver perfil y acceso ↗</span>
             </span>
           </Link>
         ))}

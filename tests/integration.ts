@@ -325,7 +325,7 @@ async function main() {
       if (Date.now() > limite) throw Error("El servidor no inició: " + appLogs);
       await new Promise((r) => setTimeout(r, 250));
     }
-    async function cliente(email?: string) {
+    async function cliente(email?: string, clave = "Prueba12345") {
       const api = await request.newContext({ baseURL });
       contexts.push(api);
       if (email) {
@@ -334,7 +334,7 @@ async function main() {
           form: {
             csrfToken: csrf.csrfToken,
             email,
-            password: "Prueba12345",
+            password: clave,
             callbackUrl: baseURL + "/panel",
           },
           maxRedirects: 0,
@@ -349,6 +349,258 @@ async function main() {
       sec = await cliente(secretaria.email),
       adm = await cliente(admin.email),
       doc = await cliente(doctor.email);
+    const medicoSinAcceso = await prisma.medico.create({
+      data: {
+        nombre: "Profesional",
+        apellido: "Sin acceso",
+        especialidadId: especialidad.id,
+      },
+    });
+    const accesoUrl = `/api/medicos/${medicoSinAcceso.id}/acceso`;
+    await caso(
+      "solo secretaría con permiso de médicos y administración crean accesos médicos",
+      async () => {
+        const data = { email: "nuevo-medico@example.test" };
+        assert.equal((await anon.post(accesoUrl, { data })).status(), 401);
+        assert.equal((await doc.post(accesoUrl, { data })).status(), 403);
+        assert.equal((await sec.get("/api/admin/usuarios")).status(), 403);
+        assert.equal(
+          (await sec.post("/api/admin/usuarios", { data })).status(),
+          403,
+        );
+        await prisma.usuarioInterno.update({
+          where: { id: secretaria.id },
+          data: { permisos: JSON.stringify(["turnos"]) },
+        });
+        try {
+          assert.equal((await sec.post(accesoUrl, { data })).status(), 403);
+        } finally {
+          await prisma.usuarioInterno.update({
+            where: { id: secretaria.id },
+            data: { permisos: secretaria.permisos },
+          });
+        }
+        await prisma.usuarioInterno.update({
+          where: { id: secretaria.id },
+          data: { activo: false },
+        });
+        try {
+          assert.equal((await sec.post(accesoUrl, { data })).status(), 401);
+        } finally {
+          await prisma.usuarioInterno.update({
+            where: { id: secretaria.id },
+            data: { activo: true },
+          });
+        }
+        assert.equal(
+          await prisma.usuarioInterno.count({
+            where: { medicoId: medicoSinAcceso.id },
+          }),
+          0,
+        );
+      },
+    );
+    await caso(
+      "la creación valida email, médico activo y rol fijo sin sustituir otras cuentas",
+      async () => {
+        for (const data of [
+          { email: "invalido" },
+          { email: "nuevo@example.test", rol: "ADMIN" },
+          { email: "nuevo@example.test", permisos: ["usuarios"] },
+          { email: "nuevo@example.test", medicoId: medico.id },
+        ]) {
+          assert.equal((await sec.post(accesoUrl, { data })).status(), 400);
+        }
+        assert.equal(
+          (
+            await sec.post(accesoUrl, {
+              data: { email: " ADMIN@EXAMPLE.TEST " },
+            })
+          ).status(),
+          409,
+        );
+        assert.equal(
+          (
+            await sec.post("/api/medicos/no-existe/acceso", {
+              data: { email: "nuevo@example.test" },
+            })
+          ).status(),
+          404,
+        );
+        await prisma.medico.update({
+          where: { id: medicoSinAcceso.id },
+          data: { activo: false },
+        });
+        try {
+          assert.equal(
+            (
+              await sec.post(accesoUrl, {
+                data: { email: "nuevo@example.test" },
+              })
+            ).status(),
+            400,
+          );
+        } finally {
+          await prisma.medico.update({
+            where: { id: medicoSinAcceso.id },
+            data: { activo: true },
+          });
+        }
+        assert.equal(
+          await prisma.usuarioInterno.count({
+            where: { medicoId: medicoSinAcceso.id },
+          }),
+          0,
+        );
+        const original = await prisma.usuarioInterno.findUniqueOrThrow({
+          where: { id: admin.id },
+        });
+        assert.equal(original.password, admin.password);
+        assert.equal(original.rol, "ADMIN");
+      },
+    );
+    await caso(
+      "dos altas simultáneas crean una sola cuenta médica con contraseña válida y permisos limitados",
+      async () => {
+        const responses = await Promise.all([
+          sec.post(accesoUrl, {
+            data: { email: " NUEVO-MEDICO@EXAMPLE.TEST " },
+          }),
+          sec.post(accesoUrl, { data: { email: "nuevo-medico@example.test" } }),
+        ]);
+        assert.deepEqual(responses.map((r) => r.status()).sort(), [201, 409]);
+        const response = responses.find((r) => r.status() === 201)!;
+        assert.match(response.headers()["cache-control"], /no-store/);
+        const body = await response.json();
+        assert.deepEqual(Object.keys(body).sort(), [
+          "passwordInicial",
+          "usuario",
+        ]);
+        assert.deepEqual(body.usuario, {
+          email: "nuevo-medico@example.test",
+          activo: true,
+        });
+        assert(body.passwordInicial.length >= 16);
+        const creado = await prisma.usuarioInterno.findUniqueOrThrow({
+          where: { medicoId: medicoSinAcceso.id },
+        });
+        assert.equal(creado.rol, "MEDICO");
+        assert.deepEqual(JSON.parse(creado.permisos!), ["agenda", "bloqueos"]);
+        assert.notEqual(creado.password, body.passwordInicial);
+        assert(await bcrypt.compare(body.passwordInicial, creado.password));
+        const nuevo = await cliente(creado.email, body.passwordInicial);
+        const session = await (await nuevo.get("/api/auth/session")).json();
+        assert.equal(session.user.rol, "MEDICO");
+        assert.equal(session.user.medicoId, medicoSinAcceso.id);
+        assert.equal((await nuevo.get("/agenda")).status(), 200);
+        assert.equal((await nuevo.get("/api/admin/usuarios")).status(), 403);
+        assert.equal((await nuevo.get(`/api/turnos/${nota.id}`)).status(), 403);
+        assert.equal(
+          (
+            await adm.post(accesoUrl, {
+              data: { email: "reemplazo@example.test" },
+            })
+          ).status(),
+          409,
+        );
+        const conservado = await prisma.usuarioInterno.findUniqueOrThrow({
+          where: { id: creado.id },
+        });
+        assert.equal(conservado.email, creado.email);
+        assert.equal(conservado.password, creado.password);
+        const html = await (
+          await sec.get(`/medicos/${medicoSinAcceso.id}`)
+        ).text();
+        assert(html.includes("Este médico ya tiene acceso al panel"));
+        assert(!html.includes(body.passwordInicial));
+        assert(!html.includes(creado.password));
+      },
+    );
+    await caso(
+      "secretaría genera y entrega el acceso desde el perfil del médico en celular",
+      async () => {
+        const candidato = await prisma.medico.create({
+          data: {
+            nombre: "Acceso",
+            apellido: "Desde panel",
+            especialidadId: especialidad.id,
+            email: "panel-medico@example.test",
+          },
+        });
+        const browser = await chromium.launch({ headless: true });
+        try {
+          const context = await browser.newContext({
+            storageState: await sec.storageState(),
+            viewport: { width: 390, height: 844 },
+            permissions: ["clipboard-read", "clipboard-write"],
+          });
+          const page = await context.newPage();
+          await page.goto(`${baseURL}/medicos/${candidato.id}`);
+          const email = page.getByLabel("Email para ingresar *", {
+            exact: true,
+          });
+          assert.equal(await email.inputValue(), candidato.email);
+          await page
+            .getByRole("button", {
+              name: "Generar usuario y contraseña",
+              exact: true,
+            })
+            .click();
+          await page
+            .getByText("Acceso creado para Acceso Desde panel.", {
+              exact: true,
+            })
+            .waitFor();
+          const secreto = await page.locator("dd.font-mono").innerText();
+          assert(secreto.length >= 16);
+          await page
+            .getByRole("button", {
+              name: "Copiar datos de acceso",
+              exact: true,
+            })
+            .click();
+          await page
+            .getByText("Datos copiados para entregar al médico.", {
+              exact: true,
+            })
+            .waitFor();
+          const copiado = await page.evaluate(() =>
+            navigator.clipboard.readText(),
+          );
+          assert(copiado.includes(`${baseURL}/login`));
+          assert(copiado.includes(`Usuario: ${candidato.email}`));
+          assert(copiado.includes(`Contraseña: ${secreto}`));
+          assert(
+            await page.evaluate(
+              () => document.documentElement.scrollWidth <= window.innerWidth,
+            ),
+          );
+          await mkdir("test-results", { recursive: true });
+          await page
+            .locator('section[aria-labelledby="acceso-medico-titulo"]')
+            .screenshot({ path: "test-results/medico-acceso.png" });
+          await page
+            .getByRole("button", { name: "Listo", exact: true })
+            .click();
+          await page
+            .getByText("Este médico ya tiene acceso al panel.", { exact: true })
+            .waitFor();
+          assert(!(await page.locator("body").innerText()).includes(secreto));
+          await page.reload();
+          assert.equal(
+            await page
+              .getByRole("button", {
+                name: "Generar usuario y contraseña",
+                exact: true,
+              })
+              .count(),
+            0,
+          );
+        } finally {
+          await browser.close();
+        }
+      },
+    );
     const datos = {
       dni: paciente.dni,
       nombre: "Identidad Falsa",
