@@ -1,12 +1,18 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, type ReactNode } from "react";
 import { fetchJSON, mensajeError, useRecurso } from "@/lib/cliente";
 import { Download, Upload, FileText } from "lucide-react";
 
 type Registro = { id: string; createdAt: string; autor: { nombre: string } };
 type Nota = Registro & { contenido: string };
 type Archivo = Registro & { nombre: string; tamanio: number };
-export function DocumentacionPaciente({ pacienteId }: { pacienteId: string }) {
+export function DocumentacionPaciente({
+  pacienteId,
+  children,
+}: {
+  pacienteId: string;
+  children: ReactNode;
+}) {
   const [contenido, setContenido] = useState("");
   const [paginaNotas, setPaginaNotas] = useState(1);
   const [paginaArchivos, setPaginaArchivos] = useState(1);
@@ -73,10 +79,6 @@ export function DocumentacionPaciente({ pacienteId }: { pacienteId: string }) {
     <section className="patient-documents mt-10 space-y-6">
       <div>
         <h2 className="text-xl font-semibold">Notas y archivos compartidos</h2>
-        <p>
-          Disponibles para secretaría y los médicos que atienden a este
-          paciente.
-        </p>
       </div>
       {(error || notas.error || archivos.error) && (
         <p role="alert" className="notice notice-error">
@@ -88,54 +90,57 @@ export function DocumentacionPaciente({ pacienteId }: { pacienteId: string }) {
           {aviso}
         </p>
       )}
-      <section
-        className="surface p-5 space-y-4"
-        aria-labelledby="notas-paciente-titulo"
-      >
-        <h3 id="notas-paciente-titulo" className="text-lg font-semibold">
-          Notas del paciente
-        </h3>
-        <form onSubmit={guardarNota} className="space-y-3">
-          <label className="block">
-            Nueva nota
-            <textarea
-              required
-              maxLength={10000}
-              value={contenido}
-              onChange={(e) => setContenido(e.target.value)}
-              rows={4}
-              className="shared-input"
-            />
-          </label>
-          <button className="btn btn-primary" disabled={ocupado}>
-            Guardar nota
-          </button>
-        </form>
-        {notas.cargando && <p role="status">Cargando notas…</p>}
-        {notas.data?.map((n) => (
-          <article key={n.id} className="patient-note">
-            <p className="whitespace-pre-wrap break-words">{n.contenido}</p>
-            <p className="text-sm text-neutral-500">
-              {n.autor.nombre} · {fecha(n.createdAt)}
-            </p>
-          </article>
-        ))}
-        {notas.data?.length === 0 && <p>No hay notas compartidas todavía.</p>}
-        <div className="flex gap-3">
-          <button
-            disabled={paginaNotas === 1 || notas.cargando}
-            onClick={() => setPaginaNotas((p) => p - 1)}
-          >
-            Notas más recientes
-          </button>
-          <button
-            disabled={notas.data?.length !== 25 || notas.cargando}
-            onClick={() => setPaginaNotas((p) => p + 1)}
-          >
-            Notas anteriores
-          </button>
-        </div>
-      </section>
+      <div className="patient-record-columns">
+        {children}
+        <section
+          className="surface p-5 space-y-4"
+          aria-labelledby="notas-paciente-titulo"
+        >
+          <h3 id="notas-paciente-titulo" className="text-lg font-semibold">
+            Notas del paciente
+          </h3>
+          <form onSubmit={guardarNota} className="space-y-3">
+            <label className="block">
+              Nueva nota
+              <textarea
+                required
+                maxLength={10000}
+                value={contenido}
+                onChange={(e) => setContenido(e.target.value)}
+                rows={4}
+                className="shared-input"
+              />
+            </label>
+            <button className="btn btn-primary" disabled={ocupado}>
+              Guardar nota
+            </button>
+          </form>
+          {notas.cargando && <p role="status">Cargando notas…</p>}
+          {notas.data?.map((n) => (
+            <article key={n.id} className="patient-note">
+              <p className="whitespace-pre-wrap break-words">{n.contenido}</p>
+              <p className="text-sm text-neutral-500">
+                {n.autor.nombre} · {fecha(n.createdAt)}
+              </p>
+            </article>
+          ))}
+          {notas.data?.length === 0 && <p>No hay notas compartidas todavía.</p>}
+          <div className="flex gap-3">
+            <button
+              disabled={paginaNotas === 1 || notas.cargando}
+              onClick={() => setPaginaNotas((p) => p - 1)}
+            >
+              Notas más recientes
+            </button>
+            <button
+              disabled={notas.data?.length !== 25 || notas.cargando}
+              onClick={() => setPaginaNotas((p) => p + 1)}
+            >
+              Notas anteriores
+            </button>
+          </div>
+        </section>
+      </div>
       <section
         className="surface p-5 space-y-4"
         aria-labelledby="archivos-paciente-titulo"

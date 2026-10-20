@@ -95,17 +95,21 @@ export default async function EditarPacientePage({
           />
         </div>
       )}
-      <div className="mt-10">
-        <h2 className="mb-4 text-lg font-semibold">
-          Todos los turnos del paciente
-        </h2>
-        <HistoriaClinica
-          key={paciente.id}
-          entradas={historia}
-          pacienteId={paciente.id}
-        />
-      </div>
-      <DocumentacionPaciente pacienteId={paciente.id} />
+      <DocumentacionPaciente pacienteId={paciente.id}>
+        <section
+          className="surface p-5 space-y-4"
+          aria-labelledby="turnos-paciente-titulo"
+        >
+          <h3 id="turnos-paciente-titulo" className="text-lg font-semibold">
+            Todos los turnos del paciente
+          </h3>
+          <HistoriaClinica
+            key={paciente.id}
+            entradas={historia}
+            pacienteId={paciente.id}
+          />
+        </section>
+      </DocumentacionPaciente>
     </div>
   );
 }

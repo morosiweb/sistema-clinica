@@ -3222,6 +3222,20 @@ html {
 .patient-documents {
   min-width: 0;
 }
+.patient-record-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 24px;
+}
+.patient-record-columns > section {
+  min-width: 0;
+}
+@media (max-width: 900px) {
+  .patient-record-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 .doctor-color-dot {
   display: inline-block;
   width: 14px;
