@@ -437,6 +437,10 @@ export async function pruebasPanel({
           await page.locator(".staff-main").boundingBox(),
           mainBefore,
         );
+        assert.equal(
+          (await page.locator(".sidebar").boundingBox())?.width,
+          270,
+        );
         await page.mouse.move(600, 400);
         await page.waitForFunction(
           () =>
@@ -449,11 +453,42 @@ export async function pruebasPanel({
         });
         await page.goto(`${baseURL}/turnos`);
         await page.getByLabel("Fecha", { exact: true }).fill(fecha);
-        await page.getByLabel("Vista", { exact: true }).selectOption("semana");
         const tarjeta = page.locator(
           `.calendar-desktop [data-turno-id="${pendiente.id}"]`,
         );
         await tarjeta.waitFor();
+        assert(
+          await tarjeta.evaluate(
+            (el) =>
+              Math.abs(
+                el.getBoundingClientRect().width -
+                  (el.parentElement!.clientWidth / 2 - 5),
+              ) < 1,
+          ),
+        );
+        const cambiarVista = page.getByRole("switch", {
+          name: "Vista semanal",
+          exact: true,
+        });
+        assert.equal(await cambiarVista.getAttribute("aria-checked"), "false");
+        await cambiarVista.click();
+        await page.locator(".calendar-week").waitFor();
+        assert.equal(await cambiarVista.getAttribute("aria-checked"), "true");
+        await cambiarVista.press("Space");
+        await page.locator(".calendar-day-grid").waitFor();
+        assert.equal(await cambiarVista.getAttribute("aria-checked"), "false");
+        await cambiarVista.click();
+        await page.locator(".calendar-week").waitFor();
+        await tarjeta.waitFor();
+        assert(
+          await tarjeta.evaluate(
+            (el) =>
+              Math.abs(
+                el.getBoundingClientRect().width -
+                  (el.parentElement!.clientWidth / 2 - 6),
+              ) < 1,
+          ),
+        );
         assert.equal(
           await tarjeta.evaluate((el) => getComputedStyle(el).backgroundColor),
           "rgb(236, 239, 242)",
@@ -487,8 +522,10 @@ export async function pruebasPanel({
         assert.equal(await tarjeta.locator(".event-actions").count(), 0);
         assert.equal(await tarjeta.getAttribute("data-conservado"), "si");
         assert.equal(
-          await page.getByLabel("Vista", { exact: true }).inputValue(),
-          "semana",
+          await page
+            .getByRole("switch", { name: "Vista semanal", exact: true })
+            .getAttribute("aria-checked"),
+          "true",
         );
         assert.equal(
           await page.getByLabel("Fecha", { exact: true }).inputValue(),
@@ -546,6 +583,19 @@ export async function pruebasPanel({
           409,
         );
         await page.setViewportSize({ width: 390, height: 844 });
+        const tarjetaMovil = page.locator(
+          `.calendar-mobile-event[data-turno-id="${pendiente.id}"]`,
+        );
+        await tarjetaMovil.waitFor();
+        assert(
+          await tarjetaMovil.evaluate(
+            (el) =>
+              Math.abs(
+                el.getBoundingClientRect().width -
+                  el.parentElement!.clientWidth / 2,
+              ) < 1,
+          ),
+        );
         assert(
           await page.evaluate(
             () => document.documentElement.scrollWidth <= innerWidth,

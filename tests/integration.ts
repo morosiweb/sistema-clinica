@@ -1638,8 +1638,8 @@ async function main() {
           await page.goto(baseURL + "/turnos");
           await page.getByLabel("Fecha", { exact: true }).fill(futuro);
           await page
-            .getByLabel("Vista", { exact: true })
-            .selectOption("semana");
+            .getByRole("switch", { name: "Vista semanal", exact: true })
+            .click();
           await page.getByLabel("Prueba", { exact: true }).check();
           await page.locator(".calendar-week").waitFor();
           await agenda.goto(baseURL + "/agenda");
@@ -1681,8 +1681,10 @@ async function main() {
             futuro,
           );
           assert.equal(
-            await page.getByLabel("Vista", { exact: true }).inputValue(),
-            "semana",
+            await page
+              .getByRole("switch", { name: "Vista semanal", exact: true })
+              .getAttribute("aria-checked"),
+            "true",
           );
           assert(await page.getByLabel("Prueba", { exact: true }).isChecked());
 

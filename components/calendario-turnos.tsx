@@ -95,6 +95,7 @@ function TarjetaTurno({
         className="event-open"
         onClick={() => router.push(`/turnos/${t.id}`)}
         aria-label={`${t.horaInicio}–${t.horaFin} ${t.pacienteNombre} · ${t.estado}`}
+        title={`${t.horaInicio}–${t.horaFin} · ${t.pacienteNombre} · ${t.medicoNombre}`}
       >
         <span className="event-time">
           {t.horaInicio}–{t.horaFin}
@@ -273,17 +274,22 @@ export function CalendarioTurnos({
           <ChevronRight size={18} />
         </button>
         <button onClick={() => setDia(hoy)}>Hoy</button>
-        <label className="flex items-center gap-2">
-          Vista
-          <select
-            aria-label="Vista"
-            value={vista}
-            onChange={(e) => setVista(e.target.value as "dia" | "semana")}
-          >
-            <option value="dia">Día</option>
-            <option value="semana">Semana</option>
-          </select>
-        </label>
+        <button
+          type="button"
+          role="switch"
+          aria-label="Vista semanal"
+          aria-checked={vista === "semana"}
+          className="calendar-view-toggle"
+          onClick={() =>
+            setVista((actual) => (actual === "dia" ? "semana" : "dia"))
+          }
+        >
+          <span data-active={vista === "dia"}>Día</span>
+          <span className="calendar-view-track" aria-hidden="true">
+            <span />
+          </span>
+          <span data-active={vista === "semana"}>Semana</span>
+        </button>
         <button className="refresh-calendar" onClick={recurso.refrescar}>
           <RefreshCw size={16} />
           Actualizar

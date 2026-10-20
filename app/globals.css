@@ -3452,6 +3452,8 @@ html {
 
 /* El menú se superpone: abrirlo no mueve la pantalla de trabajo. */
 .staff-app .sidebar {
+  width: 270px;
+  max-width: calc(100vw - 32px);
   transform: translateX(-100%);
   visibility: hidden;
   transition:
@@ -3498,6 +3500,62 @@ html {
 .sidebar-edge:focus-visible {
   outline: 3px solid var(--teal);
   outline-offset: 2px;
+}
+.calendar-toolbar .calendar-view-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 5px 8px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+}
+.calendar-view-toggle > span[data-active="true"] {
+  color: var(--navy);
+  font-weight: 600;
+}
+.calendar-view-track {
+  display: inline-flex;
+  align-items: center;
+  width: 50px;
+  height: 28px;
+  padding: 3px;
+  border-radius: 20px;
+  background: #70858d;
+  transition: background 160ms ease;
+}
+.calendar-view-track > span {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 3px #15333e30;
+  transition: transform 160ms ease;
+}
+.calendar-view-toggle[aria-checked="true"] .calendar-view-track {
+  background: var(--teal);
+}
+.calendar-view-toggle[aria-checked="true"] .calendar-view-track > span {
+  transform: translateX(22px);
+}
+.calendar-event.appointment-event {
+  width: calc(50% - 5px);
+  right: auto;
+}
+.week-event.appointment-event {
+  width: calc(50% - 6px);
+  padding: 8px 6px;
+}
+.calendar-mobile-event.appointment-event,
+.calendar .cancelled-event {
+  width: 50%;
+}
+.week-event .event-actions {
+  gap: 4px;
+}
+.week-event .event-actions button {
+  min-width: 30px;
 }
 .dashboard .dashboard-columns {
   grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
@@ -3566,7 +3624,9 @@ html {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .staff-app .sidebar {
+  .staff-app .sidebar,
+  .calendar-view-track,
+  .calendar-view-track > span {
     transition: none;
   }
 }
