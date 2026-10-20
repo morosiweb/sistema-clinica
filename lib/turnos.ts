@@ -84,9 +84,15 @@ async function turnoDelPaciente(
   if (!turno || turno.pacienteId !== pacienteId)
     throw new ErrorClinica("Turno no encontrado", 404);
   comprobarVersion(turno.version, version);
-  if (!["PENDIENTE", "CONFIRMADO"].includes(turno.estado))
+  if (
+    !["PENDIENTE", "CONFIRMADO"].includes(turno.estado) &&
+    !(turno.estado === "CANCELADO" && turno.requiereReprogramacion)
+  )
     throw new ErrorClinica("Ese turno ya no se puede modificar online", 409);
-  if (horasHastaElTurno(turno.fecha, turno.horaInicio) < VENTANA_MINIMA_HORAS)
+  if (
+    !turno.requiereReprogramacion &&
+    horasHastaElTurno(turno.fecha, turno.horaInicio) < VENTANA_MINIMA_HORAS
+  )
     throw new ErrorClinica(
       `Faltan menos de ${VENTANA_MINIMA_HORAS} horas. Comunicate con la clínica.`,
     );
@@ -127,6 +133,7 @@ export function reprogramarTurno(p: {
         fecha: fechaDB(p.fecha),
         ...slot,
         estado: "PENDIENTE",
+        requiereReprogramacion: false,
         version: { increment: 1 },
         recordatorioEnviado: false,
         recordatorioError: null,
@@ -156,6 +163,7 @@ export function cancelarTurnoPaciente(p: {
       where: { id: p.turnoId, version: p.version },
       data: {
         estado: "CANCELADO",
+        requiereReprogramacion: false,
         version: { increment: 1 },
         historial: {
           create: {
@@ -235,6 +243,8 @@ export function actualizarTurno(
       where: { id, version: data.version },
       data: {
         estado: data.estado,
+        requiereReprogramacion:
+          actual.estado !== data.estado ? false : actual.requiereReprogramacion,
         notasMedico: notas,
         ...(viewer.rol !== "MEDICO" && data.notasSecretaria !== undefined
           ? { notasSecretaria: data.notasSecretaria || null }

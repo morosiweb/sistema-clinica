@@ -23,6 +23,7 @@ export type TurnoDetalleData = {
   horaInicio: string;
   horaFin: string;
   estado: string;
+  requiereReprogramacion?: boolean;
   motivoConsulta: string | null;
   notasSecretaria: string | null;
   notasMedico: string | null;
@@ -119,6 +120,11 @@ export function TurnoDetalle({
 
   return (
     <div className="clinical-detail space-y-6">
+      {turno.requiereReprogramacion && (
+        <p className="notice">
+          Turno por reprogramar debido a una licencia del profesional.
+        </p>
+      )}
       <div className="consultation-summary">
         <p className="font-medium">
           {turno.paciente.apellido}, {turno.paciente.nombre} · DNI{" "}

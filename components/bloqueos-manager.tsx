@@ -1,6 +1,18 @@
 "use client";
-import { useState } from "react";
-import { fetchJSON, mensajeError, useHoy, useRecurso } from "@/lib/cliente";
+import { useEffect, useRef, useState } from "react";
+import {
+  fetchJSON,
+  mensajeError,
+  useHoy,
+  useRecurso,
+  notificarTurnos,
+} from "@/lib/cliente";
+import type { ConflictoLicencia } from "@/lib/bloqueos";
+type SolicitudLicencia = {
+  url: string;
+  method: "POST" | "PATCH";
+  datos: Record<string, unknown>;
+};
 type Medico = { id: string; nombre: string; apellido: string };
 type Bloqueo = {
   id: string;
@@ -36,61 +48,111 @@ export function BloqueosManager({
       ? `/api/bloqueos?medicoId=${encodeURIComponent(medicoFijo)}`
       : "/api/bloqueos",
   );
-  async function crear(e: React.FormEvent) {
-    e.preventDefault();
+  const dialogo = useRef<HTMLDialogElement>(null);
+  const [confirmacion, setConfirmacion] = useState<{
+    solicitud: SolicitudLicencia;
+    conflictos: ConflictoLicencia[];
+  } | null>(null);
+  useEffect(() => {
+    if (confirmacion && !dialogo.current?.open) {
+      dialogo.current?.showModal();
+      dialogo.current
+        ?.querySelector<HTMLButtonElement>("[data-cancelar]")
+        ?.focus();
+    } else if (!confirmacion && dialogo.current?.open) dialogo.current.close();
+  }, [confirmacion]);
+  async function guardarLicencia(
+    solicitud: SolicitudLicencia,
+    conflictos?: ConflictoLicencia[],
+  ) {
     setOcupado(true);
     setError("");
     setAviso("");
     try {
-      await fetchJSON("/api/bloqueos", {
-        method: "POST",
+      const res = await fetch(solicitud.url, {
+        method: solicitud.method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          medicoId,
-          fecha: dia || hoy,
-          ...(tipo === "vacaciones" ? { fechaHasta: hasta || dia || hoy } : {}),
-          horaInicio: tipo === "horas" ? inicio : "",
-          horaFin: tipo === "horas" ? fin : "",
-          motivo:
-            motivo || (tipo === "vacaciones" ? "Vacaciones" : "Tiempo libre"),
+          ...solicitud.datos,
+          ...(conflictos
+            ? {
+                confirmarReprogramacion: true,
+                turnosConfirmados: conflictos.map((t) => ({
+                  id: t.id,
+                  version: t.version,
+                })),
+              }
+            : {}),
         }),
       });
+      const body = await res.json();
+      if (
+        res.status === 409 &&
+        body.codigo === "TURNOS_COINCIDENTES" &&
+        Array.isArray(body.conflictos)
+      ) {
+        if (confirmacion)
+          setError(
+            "La agenda cambió. Revisá la lista actualizada antes de confirmar.",
+          );
+        setConfirmacion({ solicitud, conflictos: body.conflictos });
+        return;
+      }
+      if (!res.ok)
+        throw new Error(body.error || "No se pudo guardar la licencia.");
+      setConfirmacion(null);
       setMotivo("");
       setAviso(
-        esMedico
-          ? "Solicitud registrada para aprobación."
-          : "Ausencia guardada. Esos horarios ya no se pueden reservar.",
+        solicitud.datos.estado === "RECHAZADO"
+          ? "La licencia quedó anulada."
+          : "Ausencia guardada. Esos horarios ya no se pueden reservar." +
+              (body.notificacionesProgramadas
+                ? " Se enviará un correo con el enlace para reprogramar a los turnos afectados."
+                : "") +
+              (body.sinEmail
+                ? " Hay " +
+                  body.sinEmail +
+                  " turno(s) de pacientes sin email: deben ser contactados por teléfono."
+                : ""),
       );
       recurso.refrescar();
+      notificarTurnos();
     } catch (e) {
       setError(mensajeError(e));
     } finally {
       setOcupado(false);
     }
   }
+  async function crear(e: React.FormEvent) {
+    e.preventDefault();
+    await guardarLicencia({
+      url: "/api/bloqueos",
+      method: "POST",
+      datos: {
+        medicoId,
+        fecha: dia || hoy,
+        ...(tipo === "vacaciones" ? { fechaHasta: hasta || dia || hoy } : {}),
+        horaInicio: tipo === "horas" ? inicio : "",
+        horaFin: tipo === "horas" ? fin : "",
+        motivo:
+          motivo || (tipo === "vacaciones" ? "Vacaciones" : "Tiempo libre"),
+      },
+    });
+  }
   async function resolver(id: string, estado: string) {
-    setOcupado(true);
-    setError("");
-    try {
-      await fetchJSON(`/api/bloqueos/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ estado }),
-      });
-      recurso.refrescar();
-    } catch (e) {
-      setError(mensajeError(e));
-    } finally {
-      setOcupado(false);
-    }
+    await guardarLicencia({
+      url: "/api/bloqueos/" + id,
+      method: "PATCH",
+      datos: { estado },
+    });
   }
   const input = "mt-1 w-full rounded border p-2 dark:bg-neutral-900";
   return (
     <div className="space-y-6">
       <p className="text-sm">
-        {esMedico
-          ? "Tus solicitudes requieren aprobación de secretaría o administración."
-          : "Las licencias aprobadas dejan de ofrecer horarios. Antes de aprobar, resolvé los turnos ya reservados."}
+        Las licencias se registran directamente y bloquean los horarios
+        elegidos. Si coinciden con turnos, revisá la lista y confirmá el envío
+        de los avisos por correo antes de continuar.
       </p>
       <form
         onSubmit={crear}
@@ -188,7 +250,7 @@ export function BloqueosManager({
           disabled={ocupado || !medicoId}
           className="rounded bg-neutral-900 p-2 text-sm text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
         >
-          {esMedico ? "Solicitar licencia" : "Registrar licencia"}
+          Registrar licencia
         </button>
       </form>
       {aviso && (
@@ -196,12 +258,12 @@ export function BloqueosManager({
           {aviso}
         </p>
       )}
-      {(error || recurso.error) && (
+      {!confirmacion && (error || recurso.error) && (
         <p role="alert" className="text-sm text-red-600">
           {error || recurso.error}
         </p>
       )}
-      {recurso.cargando && <p>Cargando solicitudes…</p>}
+      {recurso.cargando && <p>Cargando licencias…</p>}
       {recurso.data?.map((b) => (
         <article key={b.id} className="space-y-2 rounded border p-3 text-sm">
           <p>
@@ -209,16 +271,23 @@ export function BloqueosManager({
             {b.horaInicio ? `${b.horaInicio}–${b.horaFin}` : "Todo el día"}
           </p>
           <p>
-            {b.motivo} · {b.estado}
+            {b.motivo} ·{" "}
+            {(
+              {
+                APROBADO: "Registrada",
+                PENDIENTE: "Pendiente de registrar",
+                RECHAZADO: "Anulada",
+              } as Record<string, string>
+            )[b.estado] || b.estado}
           </p>
-          {!esMedico && b.estado === "PENDIENTE" && (
+          {b.estado === "PENDIENTE" && (
             <div className="flex gap-4">
               <button
                 disabled={ocupado}
                 className="underline"
                 onClick={() => resolver(b.id, "APROBADO")}
               >
-                Aprobar
+                {esMedico ? "Registrar licencia" : "Registrar"}
               </button>
               <button
                 disabled={ocupado}
@@ -229,7 +298,7 @@ export function BloqueosManager({
               </button>
             </div>
           )}
-          {!esMedico && b.estado === "APROBADO" && (
+          {b.estado === "APROBADO" && (
             <button
               disabled={ocupado}
               className="underline"
@@ -240,7 +309,9 @@ export function BloqueosManager({
                   await fetchJSON(`/api/bloqueos/${b.id}`, {
                     method: "DELETE",
                   });
+                  setAviso("La licencia quedó anulada.");
                   recurso.refrescar();
+                  notificarTurnos();
                 } catch (e) {
                   setError(mensajeError(e));
                 } finally {
@@ -254,6 +325,92 @@ export function BloqueosManager({
         </article>
       ))}
       {recurso.data?.length === 0 && <p>No hay licencias registradas.</p>}
+      <dialog
+        ref={dialogo}
+        className="license-dialog"
+        aria-labelledby="licencia-conflictos-titulo"
+        aria-describedby="licencia-conflictos-descripcion"
+        onCancel={(e) => {
+          e.preventDefault();
+          if (!ocupado) setConfirmacion(null);
+        }}
+      >
+        {confirmacion && (
+          <>
+            <h2 id="licencia-conflictos-titulo">
+              {confirmacion.conflictos.length}{" "}
+              {confirmacion.conflictos.length === 1
+                ? "turno coincide"
+                : "turnos coinciden"}{" "}
+              con la licencia
+            </h2>
+            <p id="licencia-conflictos-descripcion">
+              Al registrar la licencia, estos turnos quedarán por reprogramar.
+              Se enviará automáticamente un correo a los pacientes con email
+              registrado indicando que deben reprogramar su turno, junto con el
+              enlace para elegir otra fecha y horario.
+            </p>
+            {confirmacion.conflictos.length === 0 && (
+              <p>
+                La agenda cambió y ya no hay turnos coincidentes. Podés
+                registrar la licencia.
+              </p>
+            )}
+            <ol className="license-conflicts">
+              {confirmacion.conflictos.map((t) => (
+                <li key={t.id}>
+                  <strong>
+                    {t.paciente.apellido}, {t.paciente.nombre}
+                  </strong>
+                  <span>
+                    {new Date(t.fecha + "T12:00:00Z").toLocaleDateString(
+                      "es-AR",
+                      { timeZone: "UTC" },
+                    )}{" "}
+                    · {t.horaInicio}–{t.horaFin}
+                  </span>
+                  {!t.tieneEmail && (
+                    <p className="notice notice-error">
+                      Sin email registrado. Contactá al paciente por teléfono
+                      {t.paciente.telefono ? ": " + t.paciente.telefono : "."}
+                    </p>
+                  )}
+                </li>
+              ))}
+            </ol>
+            {error && (
+              <p role="alert" className="notice notice-error">
+                {error}
+              </p>
+            )}
+            <p>¿Deseás registrar la licencia de todas maneras?</p>
+            <div className="license-dialog-actions">
+              <button
+                type="button"
+                data-cancelar
+                className="btn btn-outline"
+                disabled={ocupado}
+                onClick={() => setConfirmacion(null)}
+              >
+                Volver sin registrar
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={ocupado}
+                onClick={() =>
+                  guardarLicencia(
+                    confirmacion.solicitud,
+                    confirmacion.conflictos,
+                  )
+                }
+              >
+                {ocupado ? "Registrando…" : "Registrar licencia y avisar"}
+              </button>
+            </div>
+          </>
+        )}
+      </dialog>
     </div>
   );
 }

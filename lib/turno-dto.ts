@@ -17,6 +17,7 @@ export const turnoPublicoSelect = {
   horaInicio: true,
   horaFin: true,
   estado: true,
+  requiereReprogramacion: true,
   motivoConsulta: true,
   version: true,
   medico: {

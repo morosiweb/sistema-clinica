@@ -14,6 +14,7 @@ export const GET = conErrores(async () => {
       fecha: true,
       horaInicio: true,
       estado: true,
+      requiereReprogramacion: true,
       paciente: { select: { nombre: true, apellido: true } },
       medico: { select: { apellido: true } },
     },

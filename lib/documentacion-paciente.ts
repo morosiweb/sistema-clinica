@@ -30,7 +30,10 @@ export async function comprobarAccesoPaciente(
         where: {
           pacienteId,
           medicoId: viewer.medicoId,
-          estado: { not: "CANCELADO" },
+          OR: [
+            { estado: { not: "CANCELADO" } },
+            { requiereReprogramacion: true },
+          ],
           medico: { activo: true },
         },
         select: { id: true },

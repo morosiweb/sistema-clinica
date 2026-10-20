@@ -8,6 +8,16 @@ export const bloqueoSchema = z
     horaInicio: horaSchema.optional().or(z.literal("")),
     horaFin: horaSchema.optional().or(z.literal("")),
     motivo: z.string().trim().min(3).max(300),
+    confirmarReprogramacion: z.boolean().optional(),
+    turnosConfirmados: z
+      .array(
+        z.object({
+          id: z.string().min(1),
+          version: z.number().int().nonnegative(),
+        }),
+      )
+      .max(5000)
+      .optional(),
   })
   .refine(
     (v) =>
@@ -25,3 +35,4 @@ export const bloqueoSchema = z
       (Date.parse(v.fechaHasta) - Date.parse(v.fecha)) / 86400000 <= 365,
     "Elegí un período de hasta un año",
   );
+export type BloqueoInput = z.infer<typeof bloqueoSchema>;

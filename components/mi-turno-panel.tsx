@@ -13,6 +13,7 @@ type Turno = {
   horaInicio: string;
   horaFin: string;
   estado: string;
+  requiereReprogramacion: boolean;
   medico: {
     nombre: string;
     apellido: string;
@@ -23,16 +24,23 @@ type Panel = {
   paciente: { nombre: string; apellido: string; dni: string };
   turnos: Turno[];
   hayMas: boolean;
+  turnoDestacado: Turno | null;
 };
-export function MiTurnoPanel({ token }: { token: string }) {
+export function MiTurnoPanel({
+  token,
+  turnoInicialId = "",
+}: {
+  token: string;
+  turnoInicialId?: string;
+}) {
   const ahora = useAhora();
   const [pagina, setPagina] = useState(1);
   const recurso = useRecurso<Panel>(
-    `/api/publico/mi-turno/${token}?pagina=${pagina}`,
+    `/api/publico/mi-turno/${token}?${new URLSearchParams({ pagina: String(pagina), ...(turnoInicialId ? { turnoId: turnoInicialId } : {}) })}`,
   );
   const [error, setError] = useState("");
   const [ocupado, setOcupado] = useState(false);
-  const [reprogramando, setReprogramando] = useState("");
+  const [reprogramando, setReprogramando] = useState(turnoInicialId);
   const [nuevo, setNuevo] = useState("");
   async function cancelar(t: Turno) {
     if (!confirm("¿Cancelar este turno?")) return;
@@ -110,10 +118,17 @@ export function MiTurnoPanel({ token }: { token: string }) {
         </Link>
       </main>
     );
-  const { paciente, turnos } = recurso.data;
+  const { paciente, turnoDestacado } = recurso.data;
+  const turnos = turnoDestacado
+    ? [
+        turnoDestacado,
+        ...recurso.data.turnos.filter((t) => t.id !== turnoDestacado.id),
+      ]
+    : recurso.data.turnos;
   const futuros = turnos
     .filter(
       (t) =>
+        t.requiereReprogramacion ||
         instanteClinica(t.fecha.slice(0, 10), t.horaInicio).getTime() >= ahora,
     )
     .sort(
@@ -123,6 +138,7 @@ export function MiTurnoPanel({ token }: { token: string }) {
     );
   const pasados = turnos.filter(
     (t) =>
+      !t.requiereReprogramacion &&
       instanteClinica(t.fecha.slice(0, 10), t.horaInicio).getTime() < ahora,
   );
   return (
@@ -149,10 +165,11 @@ export function MiTurnoPanel({ token }: { token: string }) {
       )}
       {futuros.map((t) => {
         const editable =
-          ["PENDIENTE", "CONFIRMADO"].includes(t.estado) &&
-          instanteClinica(t.fecha.slice(0, 10), t.horaInicio).getTime() -
-            ahora >=
-            4 * 3600000;
+          t.requiereReprogramacion ||
+          (["PENDIENTE", "CONFIRMADO"].includes(t.estado) &&
+            instanteClinica(t.fecha.slice(0, 10), t.horaInicio).getTime() -
+              ahora >=
+              4 * 3600000);
         return (
           <article key={t.id} className="space-y-2 rounded border p-4 text-sm">
             <p>
@@ -168,7 +185,14 @@ export function MiTurnoPanel({ token }: { token: string }) {
               {t.medico.apellido}, {t.medico.nombre} ·{" "}
               {t.medico.especialidad.nombre}
             </p>
-            <EstadoBadge estado={t.estado} />
+            {t.requiereReprogramacion ? (
+              <p className="notice">
+                Este turno debe ser reprogramado porque el profesional no estará
+                disponible. Elegí otra fecha y horario.
+              </p>
+            ) : (
+              <EstadoBadge estado={t.estado} />
+            )}
             {editable && (
               <div className="flex gap-4">
                 <button
@@ -192,7 +216,7 @@ export function MiTurnoPanel({ token }: { token: string }) {
             {!editable && ["PENDIENTE", "CONFIRMADO"].includes(t.estado) && (
               <p>Para modificar este turno, comunicate con la clínica.</p>
             )}
-            {reprogramando === t.id && (
+            {editable && reprogramando === t.id && (
               <ReprogramarForm
                 key={t.id + ":" + t.version}
                 medicoActualId={t.medicoId}

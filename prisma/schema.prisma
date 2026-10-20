@@ -112,8 +112,7 @@ enum EstadoBloqueo {
   RECHAZADO
 }
 
-// Licencias / ausencias puntuales del medico. Si el medico la solicita,
-// queda PENDIENTE hasta que secretaria/admin la aprueba.
+// Las licencias se registran directamente. PENDIENTE se conserva para datos anteriores.
 model BloqueoMedico {
   id            String          @id @default(cuid())
   medicoId      String
@@ -122,7 +121,7 @@ model BloqueoMedico {
   horaInicio    String?
   horaFin       String?
   motivo        String?
-  estado        EstadoBloqueo   @default(PENDIENTE)
+  estado        EstadoBloqueo   @default(APROBADO)
   aprobadoPorId String?
   aprobadoPor   UsuarioInterno? @relation(fields: [aprobadoPorId], references: [id])
   createdAt     DateTime        @default(now())
@@ -148,33 +147,39 @@ enum CanalReserva {
 }
 
 model Turno {
-  id                      String           @id @default(cuid())
-  pacienteId              String
-  paciente                Paciente         @relation(fields: [pacienteId], references: [id])
-  medicoId                String
-  medico                  Medico           @relation(fields: [medicoId], references: [id])
-  fecha                   DateTime
-  horaInicio              String
-  horaFin                 String
-  estado                  EstadoTurno      @default(PENDIENTE)
-  motivoConsulta          String?
-  canalReserva            CanalReserva     @default(ONLINE)
-  notasSecretaria         String?
-  notasMedico             String?
+  id                             String           @id @default(cuid())
+  pacienteId                     String
+  paciente                       Paciente         @relation(fields: [pacienteId], references: [id])
+  medicoId                       String
+  medico                         Medico           @relation(fields: [medicoId], references: [id])
+  fecha                          DateTime
+  horaInicio                     String
+  horaFin                        String
+  estado                         EstadoTurno      @default(PENDIENTE)
+  motivoConsulta                 String?
+  canalReserva                   CanalReserva     @default(ONLINE)
+  notasSecretaria                String?
+  notasMedico                    String?
   // Control de concurrencia optimista: se verifica antes de sobreescribir.
-  version                 Int              @default(0)
+  version                        Int              @default(0)
+  requiereReprogramacion         Boolean          @default(false)
+  reprogramacionId               String?
+  avisoReprogramacionEnviado     Boolean          @default(false)
+  avisoReprogramacionError       String?
+  avisoReprogramacionIntentadoEl DateTime?
   // Evita mandar el recordatorio de 24-48hs mas de una vez para el mismo turno.
-  recordatorioEnviado     Boolean          @default(false)
-  recordatorioError       String?
-  recordatorioIntentadoEl DateTime?
-  revisionesNotas         RevisionNota[]
-  historial               HistorialTurno[]
-  pagos                   Pago[]
-  createdAt               DateTime         @default(now())
-  updatedAt               DateTime         @updatedAt
+  recordatorioEnviado            Boolean          @default(false)
+  recordatorioError              String?
+  recordatorioIntentadoEl        DateTime?
+  revisionesNotas                RevisionNota[]
+  historial                      HistorialTurno[]
+  pagos                          Pago[]
+  createdAt                      DateTime         @default(now())
+  updatedAt                      DateTime         @updatedAt
 
   @@index([medicoId, fecha])
   @@index([pacienteId])
+  @@index([requiereReprogramacion, avisoReprogramacionEnviado])
 }
 
 enum AccionHistorialTurno {

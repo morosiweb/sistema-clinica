@@ -30,6 +30,7 @@ type TurnoCal = {
   horaInicio: string;
   horaFin: string;
   estado: string;
+  requiereReprogramacion?: boolean;
   version: number;
   canalReserva: string;
 };
@@ -103,15 +104,17 @@ function TarjetaTurno({
         <span className="event-name">{t.pacienteNombre}</span>
         <span className="event-doctor">{t.medicoNombre}</span>
         <span className="event-state">
-          {nuevo
-            ? "Por confirmar"
-            : t.estado === "CONFIRMADO"
-              ? "Confirmado"
-              : t.estado === "CANCELADO"
-                ? "Cancelado"
-                : t.estado === "ATENDIDO"
-                  ? "Atendido"
-                  : "Ausente"}
+          {t.requiereReprogramacion
+            ? "Por reprogramar"
+            : nuevo
+              ? "Por confirmar"
+              : t.estado === "CONFIRMADO"
+                ? "Confirmado"
+                : t.estado === "CANCELADO"
+                  ? "Cancelado"
+                  : t.estado === "ATENDIDO"
+                    ? "Atendido"
+                    : "Ausente"}
         </span>
       </button>
       {puedeConfirmar && nuevo && (

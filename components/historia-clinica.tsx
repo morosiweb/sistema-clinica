@@ -8,6 +8,7 @@ export type EntradaHistoria = {
   fecha: string;
   horaInicio: string;
   estado: string;
+  requiereReprogramacion?: boolean;
   motivoConsulta: string | null;
   medico: { nombre: string; apellido: string; especialidad: string };
   hayNotas: boolean;
@@ -73,7 +74,10 @@ export function HistoriaClinica({
               })}{" "}
               · {e.horaInicio}
             </span>
-            <EstadoBadge estado={e.estado} />
+            <EstadoBadge
+              estado={e.estado}
+              requiereReprogramacion={e.requiereReprogramacion}
+            />
           </div>
           <p className="text-neutral-500">
             {e.medico.apellido}, {e.medico.nombre} · {e.medico.especialidad}

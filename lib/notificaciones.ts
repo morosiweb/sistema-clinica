@@ -258,6 +258,23 @@ export async function enviarCancelacionTurno(d: DatosTurno) {
   return enviar(d.email, asunto, html, texto, d.claveEnvio);
 }
 
+export async function enviarReprogramacionPorLicencia(
+  d: DatosTurno & { token: string; turnoId: string },
+) {
+  const link = urlCompleta(
+    `/mi-turno/${encodeURIComponent(d.token)}?reprogramar=${encodeURIComponent(d.turnoId)}`,
+  );
+  const texto = `Hola ${d.nombrePaciente}, tu turno con ${d.medicoNombre} del ${fechaLarga(d.fecha)} a las ${d.horaInicio} debe ser reprogramado porque el profesional no estará disponible. Elegí una nueva fecha y horario desde este enlace: ${link}`;
+  const html = `<p>Hola ${escaparHTML(d.nombrePaciente)},</p><p>Tu turno con <strong>${escaparHTML(d.medicoNombre)}</strong> del ${fechaLarga(d.fecha)} a las <strong>${d.horaInicio}</strong> debe ser reprogramado porque el profesional no estará disponible.</p><p><a href="${escaparHTML(link)}">Reprogramar mi turno</a></p>`;
+  return enviar(
+    d.email,
+    "Tu turno debe ser reprogramado",
+    html,
+    texto,
+    d.claveEnvio,
+  );
+}
+
 export async function enviarLinkPaciente(
   destino: { email: string | null; nombre: string },
   link: string,

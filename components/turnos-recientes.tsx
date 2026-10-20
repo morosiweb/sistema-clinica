@@ -8,6 +8,7 @@ type TurnoReciente = {
   fecha: string;
   horaInicio: string;
   estado: string;
+  requiereReprogramacion: boolean;
   paciente: { nombre: string; apellido: string };
   medico: { apellido: string };
 };
@@ -46,7 +47,10 @@ export function TurnosRecientes() {
               })}{" "}
               · {t.horaInicio} · {t.medico.apellido}
             </p>
-            <EstadoBadge estado={t.estado} />
+            <EstadoBadge
+              estado={t.estado}
+              requiereReprogramacion={t.requiereReprogramacion}
+            />
           </Link>
         ))}
       </div>

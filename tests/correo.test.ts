@@ -12,6 +12,7 @@ import {
   enviarCancelacionTurno,
   enviarLinkPaciente,
   diagnosticarCorreo,
+  enviarReprogramacionPorLicencia,
 } from "../lib/notificaciones";
 
 const variables = [
@@ -212,4 +213,29 @@ test("un rechazo del servidor SMTP no se informa como envío exitoso", async () 
   } finally {
     log.mock.restore();
   }
+});
+
+test("el aviso de licencia incluye la reprogramación directa y escapa el contenido del paciente", async () => {
+  assert.equal(
+    await enviarReprogramacionPorLicencia({
+      email: "paciente@example.test",
+      nombrePaciente: "Paciente <Prueba>",
+      fecha: "2026-10-20T00:00:00Z",
+      horaInicio: "10:15",
+      medicoNombre: "Profesional <Nombre>",
+      especialidad: "Clínica",
+      token: "token-solo-de-prueba",
+      turnoId: "turno-prueba",
+      claveEnvio: "licencia/prueba/turno-prueba",
+    }),
+    true,
+  );
+  assert.equal(recibidos.length, 1);
+  assert.match(recibidos[0].text || "", /debe ser reprogramado/);
+  assert.match(
+    recibidos[0].text || "",
+    /\/mi-turno\/token-solo-de-prueba\?reprogramar=turno-prueba/,
+  );
+  assert.match(recibidos[0].html || "", /Paciente &lt;Prueba&gt;/);
+  assert.match(recibidos[0].html || "", /Profesional &lt;Nombre&gt;/);
 });

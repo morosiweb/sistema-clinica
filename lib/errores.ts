@@ -7,6 +7,7 @@ export class ErrorClinica extends Error {
   constructor(
     message: string,
     public status = 400,
+    public readonly detalles?: Record<string, unknown>,
   ) {
     super(message);
   }
@@ -15,7 +16,7 @@ export class ErrorClinica extends Error {
 export function respuestaError(error: unknown) {
   if (error instanceof ErrorClinica)
     return NextResponse.json(
-      { error: error.message },
+      { error: error.message, ...error.detalles },
       { status: error.status },
     );
   if (error instanceof ZodError)

@@ -33,6 +33,7 @@ export async function obtenerHistoriaPaciente(
       fecha: t.fecha.toISOString(),
       horaInicio: t.horaInicio,
       estado: t.estado,
+      requiereReprogramacion: t.requiereReprogramacion,
       motivoConsulta: t.motivoConsulta,
       medico: {
         nombre: t.medico.nombre,

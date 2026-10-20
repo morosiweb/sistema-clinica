@@ -10,6 +10,7 @@ import EmbeddedPostgres from "embedded-postgres";
 import { request, chromium, type APIRequestContext } from "@playwright/test";
 import bcrypt from "bcryptjs";
 import { pruebasPanel } from "./panel-secretaria";
+import { pruebasLicencias } from "./licencias-directas";
 
 async function main() {
   async function puertoLibre() {
@@ -1140,9 +1141,9 @@ async function main() {
       },
     );
     await caso(
-      "licencias pendientes requieren aprobación y las aprobadas bloquean slots",
+      "el médico registra licencias directamente y bloquea los horarios sin aprobación",
       async () => {
-        let r = await doc.post("/api/bloqueos", {
+        const r = await doc.post("/api/bloqueos", {
           data: {
             medicoId: medico.id,
             fecha: futuro,
@@ -1153,19 +1154,15 @@ async function main() {
         });
         assert.equal(r.status(), 201);
         const b = await r.json();
-        assert.equal(b.estado, "PENDIENTE");
+        assert.equal(b.estado, "APROBADO");
         assert.equal(
           (
             await doc.patch(`/api/bloqueos/${b.id}`, {
               data: { estado: "APROBADO" },
             })
           ).status(),
-          403,
+          409,
         );
-        r = await sec.patch(`/api/bloqueos/${b.id}`, {
-          data: { estado: "APROBADO" },
-        });
-        assert.equal(r.status(), 200);
         const slots = await (
           await anon.get(
             `/api/publico/disponibilidad?medicoId=${medico.id}&fecha=${futuro}`,
@@ -1175,7 +1172,7 @@ async function main() {
       },
     );
     await caso(
-      "una licencia no puede aprobarse sobre citas reservadas",
+      "una licencia con citas requiere revisar y confirmar los turnos afectados",
       async () => {
         const r = await sec.post("/api/bloqueos", {
           data: {
@@ -1757,6 +1754,20 @@ async function main() {
       pacienteId: paciente.id,
       autorId: secretaria.id,
       caso,
+    });
+    await pruebasLicencias({
+      prisma,
+      doc,
+      sec,
+      anon,
+      baseURL,
+      futuro,
+      medicoId: medico.id,
+      caso,
+      correos,
+      fallarCorreo: (valor) => {
+        fallarCorreo = valor;
+      },
     });
     console.log(
       `\n${casos} pruebas de integración correctas. PostgreSQL y correos exclusivamente locales.`,

@@ -62,6 +62,7 @@ async function GETHandler(request: NextRequest) {
       horaInicio: t.horaInicio,
       horaFin: t.horaFin,
       estado: t.estado,
+      requiereReprogramacion: t.requiereReprogramacion,
       version: t.version,
       canalReserva: t.canalReserva,
       medicoColor: t.medico.color,

@@ -34,7 +34,11 @@ export async function medicoAtendioAlPaciente(
   pacienteId: string,
 ): Promise<boolean> {
   const turno = await prisma.turno.findFirst({
-    where: { medicoId, pacienteId, estado: { not: "CANCELADO" } },
+    where: {
+      medicoId,
+      pacienteId,
+      OR: [{ estado: { not: "CANCELADO" } }, { requiereReprogramacion: true }],
+    },
     select: { id: true },
   });
   return !!turno;

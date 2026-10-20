@@ -6,10 +6,18 @@ const LABELS: Record<string, string> = {
   ATENDIDO: "Atendido",
 };
 
-export function EstadoBadge({ estado }: { estado: string }) {
+export function EstadoBadge({
+  estado,
+  requiereReprogramacion,
+}: {
+  estado: string;
+  requiereReprogramacion?: boolean;
+}) {
   return (
-    <span className={`status-badge status-${estado.toLowerCase()}`}>
-      {LABELS[estado] ?? estado}
+    <span
+      className={`status-badge status-${requiereReprogramacion ? "pendiente" : estado.toLowerCase()}`}
+    >
+      {requiereReprogramacion ? "Por reprogramar" : (LABELS[estado] ?? estado)}
     </span>
   );
 }

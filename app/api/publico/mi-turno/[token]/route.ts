@@ -19,6 +19,14 @@ async function GETHandler(
     skip: (pagina - 1) * 50,
     take: 51,
   });
+  const turnoId = request.nextUrl.searchParams.get("turnoId");
+  const turnoDestacado =
+    turnoId && turnoId.length <= 100
+      ? await prisma.turno.findFirst({
+          where: { id: turnoId, pacienteId: paciente.id },
+          select: turnoPublicoSelect,
+        })
+      : null;
   return NextResponse.json({
     paciente: {
       nombre: paciente.nombre,
@@ -27,6 +35,7 @@ async function GETHandler(
     },
     turnos: turnos.slice(0, 50),
     hayMas: turnos.length > 50,
+    turnoDestacado,
   });
 }
 
