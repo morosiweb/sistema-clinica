@@ -80,7 +80,7 @@ function TarjetaTurno({
   const nuevo = t.estado === "PENDIENTE";
   return (
     <article
-      className={`${clase} appointment-event ${minutos(t.horaFin) - minutos(t.horaInicio) < 15 ? "compact" : ""}`}
+      className={`${clase} appointment-event ${minutos(t.horaFin) - minutos(t.horaInicio) <= 15 ? "short" : ""} ${minutos(t.horaFin) - minutos(t.horaInicio) < 15 ? "compact" : ""}`}
       data-estado={t.estado}
       data-turno-id={t.id}
       style={
@@ -202,7 +202,11 @@ export function CalendarioTurnos({
     20 * 60,
     ...activos.map((t) => Math.ceil(minutos(t.horaFin) / 30) * 30),
   );
-  const escala = 6,
+  // Conservar espacio para operar citas muy cortas sin superponer tarjetas.
+  const escala = Math.max(
+      3,
+      ...activos.map((t) => 28 / (minutos(t.horaFin) - minutos(t.horaInicio))),
+    ),
     alto = (max - min) * escala;
   const filas = Array.from(
     { length: Math.ceil((max - min) / 30) },

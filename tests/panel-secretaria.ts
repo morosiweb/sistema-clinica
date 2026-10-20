@@ -462,9 +462,27 @@ export async function pruebasPanel({
             (el) =>
               Math.abs(
                 el.getBoundingClientRect().width -
-                  (el.parentElement!.clientWidth / 2 - 5),
+                  (el.parentElement!.clientWidth - 10),
               ) < 1,
           ),
+        );
+        assert.equal((await tarjeta.boundingBox())?.height, 45);
+        const controlesVisibles = await tarjeta.evaluate((el) => {
+          const caja = el.getBoundingClientRect();
+          return [...el.querySelectorAll(".event-actions button")].every(
+            (boton) => {
+              const control = boton.getBoundingClientRect();
+              return (
+                control.top >= caja.top &&
+                control.bottom <= caja.bottom &&
+                control.right <= caja.right
+              );
+            },
+          );
+        });
+        assert(
+          controlesVisibles,
+          "Los controles entran en la tarjeta de menor alto",
         );
         const cambiarVista = page.getByRole("switch", {
           name: "Vista semanal",
@@ -485,10 +503,11 @@ export async function pruebasPanel({
             (el) =>
               Math.abs(
                 el.getBoundingClientRect().width -
-                  (el.parentElement!.clientWidth / 2 - 6),
+                  (el.parentElement!.clientWidth - 12),
               ) < 1,
           ),
         );
+        assert((await tarjeta.boundingBox())!.height <= 80);
         assert.equal(
           await tarjeta.evaluate((el) => getComputedStyle(el).backgroundColor),
           "rgb(236, 239, 242)",
@@ -592,10 +611,11 @@ export async function pruebasPanel({
             (el) =>
               Math.abs(
                 el.getBoundingClientRect().width -
-                  el.parentElement!.clientWidth / 2,
+                  el.parentElement!.clientWidth,
               ) < 1,
           ),
         );
+        assert((await tarjetaMovil.boundingBox())!.height <= 80);
         assert(
           await page.evaluate(
             () => document.documentElement.scrollWidth <= innerWidth,

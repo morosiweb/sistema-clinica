@@ -3540,22 +3540,82 @@ html {
   transform: translateX(22px);
 }
 .calendar-event.appointment-event {
-  width: calc(50% - 5px);
-  right: auto;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
 }
-.week-event.appointment-event {
-  width: calc(50% - 6px);
-  padding: 8px 6px;
+.calendar-event .event-open {
+  gap: 0;
+  line-height: 1.2;
 }
-.calendar-mobile-event.appointment-event,
-.calendar .cancelled-event {
-  width: 50%;
+.calendar-event.appointment-event.short .event-state {
+  display: none;
+}
+.calendar-event .event-actions {
+  margin: 0;
+}
+.calendar-event.compact {
+  padding: 1px 4px;
+}
+:is(.week-event, .calendar-mobile-event, .cancelled-event).appointment-event {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+}
+:is(.week-event, .calendar-mobile-event, .cancelled-event) .event-open {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0 8px;
+  line-height: 1.35;
+}
+:is(.week-event, .calendar-mobile-event, .cancelled-event) .event-time {
+  grid-area: 1 / 2;
+}
+:is(.week-event, .calendar-mobile-event, .cancelled-event) .event-name {
+  grid-area: 1 / 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+:is(.week-event, .calendar-mobile-event, .cancelled-event) .event-doctor {
+  grid-area: 2 / 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+:is(.week-event, .calendar-mobile-event, .cancelled-event) .event-state {
+  grid-area: 2 / 2;
+  font-size: 12px;
+}
+:is(.week-event, .calendar-mobile-event)[data-estado="PENDIENTE"] .event-open {
+  grid-template-columns: minmax(0, 1fr);
+}
+:is(.week-event, .calendar-mobile-event)[data-estado="PENDIENTE"] .event-time {
+  grid-area: 1 / 1;
+}
+:is(.week-event, .calendar-mobile-event)[data-estado="PENDIENTE"] .event-name {
+  grid-area: 2 / 1;
+}
+:is(.week-event, .calendar-mobile-event)[data-estado="PENDIENTE"]
+  .event-doctor {
+  grid-area: 3 / 1;
+}
+:is(.week-event, .calendar-mobile-event)[data-estado="PENDIENTE"] .event-state {
+  display: none;
+}
+:is(.week-event, .calendar-mobile-event) .event-actions {
+  margin: 0;
 }
 .week-event .event-actions {
+  flex-direction: column;
   gap: 4px;
 }
-.week-event .event-actions button {
-  min-width: 30px;
+.calendar .event-phone {
+  grid-column: 1 / -1;
+  padding-top: 0;
+  font-size: 14px;
 }
 .dashboard .dashboard-columns {
   grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
