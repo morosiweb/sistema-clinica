@@ -427,7 +427,7 @@ export async function pruebasPanel({
           await page.locator(".sidebar").getAttribute("aria-hidden"),
           "true",
         );
-        await page.mouse.move(2, 400);
+        await page.mouse.move(48, 400);
         await page.waitForFunction(
           () =>
             document.querySelector(".sidebar")?.getAttribute("aria-hidden") ===

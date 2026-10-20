@@ -102,7 +102,24 @@ export function StaffShell({
   const actual =
     pantallas.find((p) => pathname.startsWith(p.href))?.label || "Inicio";
   return (
-    <div className="staff-app">
+    <div
+      className="staff-app"
+      onPointerMove={(event) => {
+        if (
+          event.pointerType !== "mouse" ||
+          window.matchMedia("(max-width: 800px)").matches
+        )
+          return;
+        // Detectar la cercanía sin una capa invisible sobre los botones.
+        if (event.clientX <= 64) setOpen(true);
+        else if (
+          sidebar.current &&
+          event.clientX > sidebar.current.offsetWidth &&
+          !sidebar.current.contains(document.activeElement)
+        )
+          setOpen(false);
+      }}
+    >
       <a href="#contenido" className="skip-link">
         Ir al contenido
       </a>
@@ -111,19 +128,6 @@ export function StaffShell({
         aria-label="Mostrar menú lateral"
         aria-expanded={open}
         aria-controls="menu-lateral"
-        onPointerEnter={(event) => {
-          if (event.pointerType === "mouse") setOpen(true);
-        }}
-        onPointerLeave={(event) => {
-          if (
-            event.pointerType === "mouse" &&
-            !(
-              event.relatedTarget instanceof Node &&
-              sidebar.current?.contains(event.relatedTarget)
-            )
-          )
-            setOpen(false);
-        }}
         onClick={() => setOpen(true)}
       />
       {open && (
