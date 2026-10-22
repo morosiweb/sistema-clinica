@@ -11,13 +11,14 @@ export function Brand({
     <Link
       href={href}
       className={`brand ${light ? "brand-light" : ""}`}
-      aria-label="Clínica · Inicio"
+      aria-label="Clínica del rosario · Inicio"
     >
       <span className="brand-symbol" aria-hidden="true">
         <span />
       </span>
-      <span>
-        clínica<span className="brand-caption">SALUD Y BIENESTAR</span>
+      <span className="brand-copy">
+        <span className="brand-name">Clínica del rosario</span>
+        <span className="brand-caption">salud y bien estar</span>
       </span>
     </Link>
   );

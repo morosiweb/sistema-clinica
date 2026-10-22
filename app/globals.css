@@ -176,6 +176,13 @@ svg {
   letter-spacing: -1.4px;
   line-height: 1;
 }
+.brand-copy {
+  min-width: 0;
+}
+.brand-name {
+  display: block;
+  line-height: 1.12;
+}
 .brand-caption {
   display: block;
   font-size: 13px;
@@ -186,6 +193,7 @@ svg {
 .brand-symbol {
   position: relative;
   display: block;
+  flex-shrink: 0;
   width: 37px;
   height: 37px;
   background: #d8eae3;
@@ -1169,7 +1177,14 @@ svg {
   padding: 0 14px 33px;
 }
 .sidebar .brand {
-  font-size: 29px;
+  min-width: 0;
+  font-size: 20px;
+  letter-spacing: -0.7px;
+}
+.sidebar .brand-caption {
+  font-size: 10px;
+  letter-spacing: 0.8px;
+  white-space: nowrap;
 }
 .workspace-label {
   font-size: 13px;
