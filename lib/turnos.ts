@@ -199,7 +199,7 @@ export function actualizarTurno(
     const actual = await tx.turno.findUnique({
       where: { id },
       include: {
-        paciente: { select: { email: true, nombre: true } },
+        paciente: { select: { email: true, telefono: true, nombre: true } },
         medico: { include: { especialidad: true } },
       },
     });

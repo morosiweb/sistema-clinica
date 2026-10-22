@@ -11,7 +11,7 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "test": "tsx --test tests/unit.test.ts tests/correo.test.ts",
+    "test": "tsx --test tests/unit.test.ts tests/correo.test.ts tests/whatsapp.test.ts",
     "test:integration": "npm run build && tsx tests/integration.ts",
     "format": "prettier --write app components lib tests scripts next.config.ts README.md",
     "db:migrate": "prisma migrate deploy",

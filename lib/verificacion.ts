@@ -1,7 +1,11 @@
 import crypto from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { generarToken, hashToken } from "@/lib/token";
-import { correoConfigurado, enviarCodigo } from "@/lib/notificaciones";
+import {
+  correoConfigurado,
+  whatsappConfigurado,
+  enviarCodigo,
+} from "@/lib/notificaciones";
 import { ErrorClinica } from "@/lib/errores";
 import type { Transaccion } from "@/lib/transaccion";
 
@@ -53,7 +57,7 @@ export async function solicitarCodigo(
   proposito: "RESERVA" | "ACCESO",
   origen: string,
 ) {
-  if (!correoConfigurado())
+  if (!correoConfigurado() && !whatsappConfigurado())
     throw new ErrorClinica(
       "La gestión online no está disponible. Comunicate con la clínica.",
       503,
@@ -68,6 +72,10 @@ export async function solicitarCodigo(
     : proposito === "RESERVA"
       ? email || null
       : null;
+  // El teléfono de un DNI nuevo todavía no se conoce en este paso (recién se
+  // envía junto con la reserva), así que ese primer código siempre va por
+  // email. Para un paciente ya existente sí hay teléfono disponible.
+  const telefono = paciente?.telefono || null;
   const id = generarToken();
   const codigo = crypto.randomInt(0, 1000000).toString().padStart(6, "0");
   await prisma.verificacionPaciente.create({
@@ -76,13 +84,14 @@ export async function solicitarCodigo(
       dni,
       pacienteId: paciente?.id || null,
       email: destino,
+      telefono,
       proposito,
       codigoHash: hashCodigo(id, codigo),
       venceEl: new Date(Date.now() + DURACION),
     },
   });
-  if (destino) {
-    const enviado = await enviarCodigo(destino, codigo);
+  if (destino || telefono) {
+    const { enviado } = await enviarCodigo({ email: destino, telefono }, codigo);
     if (!enviado) {
       await prisma.verificacionPaciente.update({
         where: { id },
@@ -113,7 +122,7 @@ export async function comprobarCodigo(
     dato.consumidoEl ||
     dato.venceEl.getTime() <= Date.now() ||
     dato.intentos >= 5 ||
-    !dato.email
+    (!dato.email && !dato.telefono)
   )
     return null;
   await tx.verificacionPaciente.update({
@@ -130,7 +139,8 @@ export async function comprobarCodigo(
     dato.pacienteId
       ? !paciente ||
         paciente.id !== dato.pacienteId ||
-        paciente.email?.trim().toLowerCase() !== dato.email
+        (paciente.email?.trim().toLowerCase() ?? null) !== dato.email ||
+        (paciente.telefono ?? null) !== dato.telefono
       : !!paciente
   )
     return null;

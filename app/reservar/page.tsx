@@ -45,7 +45,7 @@ export default function ReservarPage() {
   const [error, setError] = useState("");
   const [resultado, setResultado] = useState<{
     linkAcceso: string;
-    correoEnviado: boolean;
+    notificacion: { enviado: boolean; canal: "whatsapp" | "email" | null };
   }>();
   const medicos = useRecurso<Medico[]>("/api/publico/medicos");
   const disponibilidad = useRecurso<{ slots: string[] }>(
@@ -93,7 +93,7 @@ export default function ReservarPage() {
     try {
       const res = await fetchJSON<{
         linkAcceso: string;
-        correoEnviado: boolean;
+        notificacion: { enviado: boolean; canal: "whatsapp" | "email" | null };
       }>("/api/publico/reservar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -472,9 +472,11 @@ export default function ReservarPage() {
               <p className="eyebrow">YA TENÉS TU PRÓXIMA VISITA</p>
               <h2>¡Turno reservado!</h2>
               <p>
-                {resultado.correoEnviado
-                  ? "Enviamos la confirmación y tu enlace de gestión por email."
-                  : "El turno quedó reservado, pero no pudimos enviar la confirmación por email. Guardá este enlace."}
+                {resultado.notificacion.canal === "whatsapp"
+                  ? "Enviamos la confirmación y tu enlace de gestión por WhatsApp."
+                  : resultado.notificacion.canal === "email"
+                    ? "Enviamos la confirmación y tu enlace de gestión por email."
+                    : "El turno quedó reservado, pero no pudimos enviar la confirmación. Guardá este enlace."}
               </p>
               <Link className="btn btn-primary" href={resultado.linkAcceso}>
                 Ver y gestionar mis turnos <ArrowRight size={17} />

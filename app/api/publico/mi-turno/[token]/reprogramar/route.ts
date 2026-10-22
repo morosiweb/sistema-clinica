@@ -15,8 +15,9 @@ async function POSTHandler(
     pacienteId: paciente.id,
     realizadoPor: `paciente:${paciente.id}`,
   });
-  const correoEnviado = await enviarConfirmacionTurno({
+  const notificacion = await enviarConfirmacionTurno({
     email: paciente.email,
+    telefono: paciente.telefono,
     nombrePaciente: paciente.nombre,
     fecha: turno.fecha.toISOString(),
     horaInicio: turno.horaInicio,
@@ -24,7 +25,7 @@ async function POSTHandler(
     especialidad: turno.medico.especialidad.nombre,
     token,
   });
-  return NextResponse.json({ ok: true, correoEnviado });
+  return NextResponse.json({ ok: true, notificacion });
 }
 
 export const POST = conErrores(POSTHandler);

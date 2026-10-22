@@ -108,7 +108,10 @@ after(async () => {
 
 test("Gmail funciona sin Resend y acepta la clave de aplicación con espacios", async () => {
   assert.equal(correoConfigurado(), true);
-  assert.equal(await enviarCodigo("paciente@example.test", "123456"), true);
+  assert.deepEqual(
+    await enviarCodigo({ email: "paciente@example.test" }, "123456"),
+    { enviado: true, canal: "email" },
+  );
   assert.equal(recibidos.length, 1);
   assert.equal(recibidos[0].from?.value[0].address, "emisor@gmail.com");
   assert.equal(recibidos[0].subject, "Tu código para gestionar turnos");
@@ -125,7 +128,10 @@ test("la configuración incompleta o desconocida no cae a otro proveedor", async
   process.env.RESEND_API_KEY = "re_test_only";
   delete process.env.GMAIL_APP_PASSWORD;
   assert.equal(correoConfigurado(), false);
-  assert.equal(await enviarCodigo("paciente@example.test", "123456"), false);
+  assert.deepEqual(
+    await enviarCodigo({ email: "paciente@example.test" }, "123456"),
+    { enviado: false, canal: null },
+  );
   process.env.GMAIL_APP_PASSWORD = clavePrueba;
   process.env.GMAIL_USER = "correo-invalido";
   assert.equal(correoConfigurado(), false);
@@ -140,7 +146,10 @@ test("un error de autenticación SMTP devuelve fallo sin exponer credenciales", 
   process.env.GMAIL_APP_PASSWORD = "password-incorrecto";
   const log = mock.method(console, "error", () => {});
   try {
-    assert.equal(await enviarCodigo("paciente@example.test", "654321"), false);
+    assert.deepEqual(
+      await enviarCodigo({ email: "paciente@example.test" }, "654321"),
+      { enviado: false, canal: null },
+    );
     assert.equal(recibidos.length, 0);
     const logs = JSON.stringify(log.mock.calls.map((call) => call.arguments));
     assert.equal(log.mock.calls[0].arguments.length, 1);
@@ -180,9 +189,18 @@ test("las confirmaciones, recordatorios, cancelaciones y enlaces usan Gmail", as
     token: "token-solo-de-prueba",
     claveEnvio: "recordatorio/turno-prueba",
   };
-  assert.equal(await enviarConfirmacionTurno(datos), true);
-  assert.equal(await enviarRecordatorioTurno(datos), true);
-  assert.equal(await enviarCancelacionTurno(datos), true);
+  assert.deepEqual(await enviarConfirmacionTurno(datos), {
+    enviado: true,
+    canal: "email",
+  });
+  assert.deepEqual(await enviarRecordatorioTurno(datos), {
+    enviado: true,
+    canal: "email",
+  });
+  assert.deepEqual(await enviarCancelacionTurno(datos), {
+    enviado: true,
+    canal: "email",
+  });
   assert.equal(
     await enviarLinkPaciente(
       { email: datos.email, nombre: datos.nombrePaciente },
@@ -208,7 +226,10 @@ test("un rechazo del servidor SMTP no se informa como envío exitoso", async () 
   rechazar = true;
   const log = mock.method(console, "error", () => {});
   try {
-    assert.equal(await enviarCodigo("paciente@example.test", "123456"), false);
+    assert.deepEqual(
+      await enviarCodigo({ email: "paciente@example.test" }, "123456"),
+      { enviado: false, canal: null },
+    );
     assert.equal(recibidos.length, 0);
   } finally {
     log.mock.restore();
@@ -216,7 +237,7 @@ test("un rechazo del servidor SMTP no se informa como envío exitoso", async () 
 });
 
 test("el aviso de licencia incluye la reprogramación directa y escapa el contenido del paciente", async () => {
-  assert.equal(
+  assert.deepEqual(
     await enviarReprogramacionPorLicencia({
       email: "paciente@example.test",
       nombrePaciente: "Paciente <Prueba>",
@@ -228,7 +249,7 @@ test("el aviso de licencia incluye la reprogramación directa y escapa el conten
       turnoId: "turno-prueba",
       claveEnvio: "licencia/prueba/turno-prueba",
     }),
-    true,
+    { enviado: true, canal: "email" },
   );
   assert.equal(recibidos.length, 1);
   assert.match(recibidos[0].text || "", /debe ser reprogramado/);

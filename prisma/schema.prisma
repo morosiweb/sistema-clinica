@@ -269,6 +269,10 @@ model VerificacionPaciente {
   dni         String
   pacienteId  String?
   email       String?
+  // Snapshot del teléfono al momento de pedir el código (igual criterio que
+  // email): si el contacto cambia antes de confirmar, el código deja de
+  // acreditar acceso. Solo se usa para habilitar el envío por WhatsApp.
+  telefono    String?
   proposito   String
   codigoHash  String
   intentos    Int       @default(0)

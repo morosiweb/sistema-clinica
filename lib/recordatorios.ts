@@ -28,7 +28,12 @@ export async function procesarRecordatorios() {
             where: { id: candidato.id },
             include: {
               paciente: {
-                select: { email: true, nombre: true, tokenAccesoEnc: true },
+                select: {
+                  email: true,
+                  telefono: true,
+                  nombre: true,
+                  tokenAccesoEnc: true,
+                },
               },
               medico: { include: { especialidad: true } },
             },
@@ -45,8 +50,9 @@ export async function procesarRecordatorios() {
             3600000;
           // También reintenta fallos y contempla reservas recientes a menos de 24 h.
           if (horas <= 0 || horas >= 48) return "omitido";
-          const enviado = await enviarRecordatorioTurno({
+          const { enviado } = await enviarRecordatorioTurno({
             email: turno.paciente.email,
+            telefono: turno.paciente.telefono,
             nombrePaciente: turno.paciente.nombre,
             fecha: turno.fecha.toISOString(),
             horaInicio: turno.horaInicio,
@@ -64,7 +70,7 @@ export async function procesarRecordatorios() {
             data: {
               recordatorioEnviado: enviado,
               recordatorioIntentadoEl: new Date(),
-              recordatorioError: enviado ? null : "No se pudo enviar el correo",
+              recordatorioError: enviado ? null : "No se pudo enviar el aviso",
             },
           });
           return cambio.count ? (enviado ? "enviado" : "fallido") : "omitido";

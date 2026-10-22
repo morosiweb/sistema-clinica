@@ -85,8 +85,9 @@ async function POSTHandler(request: NextRequest) {
     where: { id: turno.medicoId },
     include: { especialidad: true },
   });
-  const correoEnviado = await enviarConfirmacionTurno({
+  const notificacion = await enviarConfirmacionTurno({
     email: paciente.email,
+    telefono: paciente.telefono,
     nombrePaciente: paciente.nombre,
     fecha: turno.fecha.toISOString(),
     horaInicio: turno.horaInicio,
@@ -98,7 +99,7 @@ async function POSTHandler(request: NextRequest) {
     {
       turno: { id: turno.id },
       linkAcceso: `/mi-turno/${token}`,
-      correoEnviado,
+      notificacion,
     },
     { status: 201 },
   );

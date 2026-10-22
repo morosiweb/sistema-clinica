@@ -193,17 +193,155 @@ export async function enviar(
   }
 }
 
-export async function enviarCodigo(email: string, codigo: string) {
-  return enviar(
-    email,
+// ===================== WHATSAPP (Cloud API de Meta, sin BSP) =====================
+// Canal preferido cuando el paciente tiene teléfono: se intenta primero y,
+// si no está configurado, no hay teléfono utilizable o Meta rechaza el envío,
+// se cae al correo. Nunca se intentan los dos a la vez ni se duplica el aviso.
+//
+// Requiere plantillas aprobadas de antemano en Meta Business Manager (no se
+// puede mandar texto libre fuera de una conversación abierta por el
+// paciente). Ver README para el procedimiento y el texto exacto de cada
+// plantilla. Los nombres/variables de abajo tienen que coincidir con los que
+// se registren en Meta.
+const IDIOMA_PLANTILLAS = "es_AR";
+export const PLANTILLAS_WHATSAPP = {
+  codigo: { nombre: "clinica_codigo_verificacion", categoria: "AUTHENTICATION", variables: 1 },
+  confirmacion: { nombre: "clinica_turno_confirmado", categoria: "UTILITY", variables: 6 },
+  recordatorio: { nombre: "clinica_turno_recordatorio", categoria: "UTILITY", variables: 6 },
+  cancelacion: { nombre: "clinica_turno_cancelado", categoria: "UTILITY", variables: 4 },
+  reprogramacion: { nombre: "clinica_turno_reprogramar", categoria: "UTILITY", variables: 5 },
+} as const;
+
+function versionGraphAPI() {
+  return process.env.WHATSAPP_API_VERSION?.trim() || "v22.0";
+}
+
+function credencialesWhatsApp() {
+  const token = process.env.WHATSAPP_ACCESS_TOKEN?.trim();
+  const telefonoId = process.env.WHATSAPP_PHONE_NUMBER_ID?.trim();
+  return token && telefonoId ? { token, telefonoId } : null;
+}
+
+export function whatsappConfigurado(): boolean {
+  return !!credencialesWhatsApp();
+}
+
+// WhatsApp exige el número en formato internacional, solo dígitos. Los
+// celulares argentinos necesitan el "9" después del código de país (54) que
+// el paciente casi nunca escribe así. Es un ajuste específico para Argentina;
+// si la clínica atiende otro país, revisar esta función antes de confiar en
+// el envío por WhatsApp. Ante cualquier duda devuelve null (cae a email).
+export function normalizarTelefonoWhatsApp(
+  telefono: string | null | undefined,
+): string | null {
+  if (!telefono) return null;
+  let digitos = telefono.replace(/\D/g, "");
+  if (!digitos) return null;
+  if (digitos.startsWith("00")) digitos = digitos.slice(2);
+  if (digitos.startsWith("0")) digitos = digitos.slice(1);
+  if (!digitos.startsWith("54")) digitos = `549${digitos}`;
+  else if (!digitos.startsWith("549")) digitos = `549${digitos.slice(2)}`;
+  return /^\d{12,13}$/.test(digitos) ? digitos : null;
+}
+
+function errorWhatsAppSeguro(detalle: unknown) {
+  const error =
+    detalle && typeof detalle === "object"
+      ? (detalle as { code?: unknown; message?: unknown })
+      : {};
+  return typeof error.code === "number" ? error.code : "desconocido";
+}
+
+// No hay clave de idempotencia en la API de mensajes de Meta (a diferencia de
+// Resend). La misma protección que ya existe para el correo (bloqueo por
+// turno + estado "enviado" comprobado dentro de la transacción) evita un
+// reintento duplicado; esta función en sí no es idempotente.
+async function enviarPlantillaWhatsApp(
+  telefono: string,
+  nombrePlantilla: string,
+  parametros: string[],
+): Promise<boolean> {
+  const credenciales = credencialesWhatsApp();
+  if (!credenciales) return false;
+  try {
+    const respuesta = await fetch(
+      `https://graph.facebook.com/${versionGraphAPI()}/${credenciales.telefonoId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${credenciales.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          to: telefono,
+          type: "template",
+          template: {
+            name: nombrePlantilla,
+            language: { code: IDIOMA_PLANTILLAS },
+            ...(parametros.length
+              ? {
+                  components: [
+                    {
+                      type: "body",
+                      parameters: parametros.map((texto) => ({
+                        type: "text",
+                        text: texto,
+                      })),
+                    },
+                  ],
+                }
+              : {}),
+          },
+        }),
+        signal: AbortSignal.timeout(8000),
+      },
+    );
+    if (respuesta.ok) return true;
+    const cuerpo = await respuesta.json().catch(() => null);
+    console.error(
+      `[notificaciones] whatsapp estado=${respuesta.status} codigo=${errorWhatsAppSeguro(cuerpo?.error)}`,
+    );
+    return false;
+  } catch (error) {
+    console.error(
+      `[notificaciones] whatsapp fallo_conexion=${error instanceof Error ? error.name : "desconocido"}`,
+    );
+    return false;
+  }
+}
+
+export type ResultadoEnvio = {
+  enviado: boolean;
+  canal: "whatsapp" | "email" | null;
+};
+type Contacto = { email: string | null; telefono?: string | null };
+
+export async function enviarCodigo(
+  contacto: Contacto,
+  codigo: string,
+): Promise<ResultadoEnvio> {
+  const telefono = normalizarTelefonoWhatsApp(contacto.telefono);
+  if (telefono && whatsappConfigurado()) {
+    const ok = await enviarPlantillaWhatsApp(
+      telefono,
+      PLANTILLAS_WHATSAPP.codigo.nombre,
+      [codigo],
+    );
+    if (ok) return { enviado: true, canal: "whatsapp" };
+  }
+  const ok = await enviar(
+    contacto.email,
     "Tu código para gestionar turnos",
     `<p>Tu código es <strong>${codigo}</strong>.</p><p>Vence en 10 minutos. No lo compartas. Si no lo solicitaste, ignorá este correo.</p>`,
     `Tu código es ${codigo}. Vence en 10 minutos. No lo compartas.`,
   );
+  return { enviado: ok, canal: ok ? "email" : null };
 }
 
 type DatosTurno = {
   email: string | null;
+  telefono?: string | null;
   nombrePaciente: string;
   fecha: string;
   horaInicio: string;
@@ -213,8 +351,26 @@ type DatosTurno = {
   claveEnvio?: string;
 };
 
-export async function enviarConfirmacionTurno(d: DatosTurno) {
+export async function enviarConfirmacionTurno(
+  d: DatosTurno,
+): Promise<ResultadoEnvio> {
   const link = d.token ? urlCompleta(`/mi-turno/${d.token}`) : null;
+  const telefono = normalizarTelefonoWhatsApp(d.telefono);
+  if (telefono && whatsappConfigurado()) {
+    const ok = await enviarPlantillaWhatsApp(
+      telefono,
+      PLANTILLAS_WHATSAPP.confirmacion.nombre,
+      [
+        d.nombrePaciente,
+        d.medicoNombre,
+        d.especialidad,
+        fechaLarga(d.fecha),
+        d.horaInicio,
+        link ?? "",
+      ],
+    );
+    if (ok) return { enviado: true, canal: "whatsapp" };
+  }
   const asunto = "Turno confirmado";
   const texto =
     `Hola ${d.nombrePaciente}, tu turno con ${d.medicoNombre} (${d.especialidad}) ` +
@@ -226,11 +382,30 @@ export async function enviarConfirmacionTurno(d: DatosTurno) {
     <strong>${fechaLarga(d.fecha)}</strong> a las <strong>${d.horaInicio}</strong>.</p>
     ${link ? `<p><a href="${link}">Ver, cancelar o reprogramar tu turno</a></p>` : ""}
   `;
-  return enviar(d.email, asunto, html, texto, d.claveEnvio);
+  const ok = await enviar(d.email, asunto, html, texto, d.claveEnvio);
+  return { enviado: ok, canal: ok ? "email" : null };
 }
 
-export async function enviarRecordatorioTurno(d: DatosTurno) {
+export async function enviarRecordatorioTurno(
+  d: DatosTurno,
+): Promise<ResultadoEnvio> {
   const link = d.token ? urlCompleta(`/mi-turno/${d.token}`) : null;
+  const telefono = normalizarTelefonoWhatsApp(d.telefono);
+  if (telefono && whatsappConfigurado()) {
+    const ok = await enviarPlantillaWhatsApp(
+      telefono,
+      PLANTILLAS_WHATSAPP.recordatorio.nombre,
+      [
+        d.nombrePaciente,
+        d.medicoNombre,
+        d.especialidad,
+        fechaLarga(d.fecha),
+        d.horaInicio,
+        link ?? "",
+      ],
+    );
+    if (ok) return { enviado: true, canal: "whatsapp" };
+  }
   const asunto = "Recordatorio de tu turno";
   const texto =
     `Hola ${d.nombrePaciente}, te recordamos tu turno con ${d.medicoNombre} (${d.especialidad}) ` +
@@ -242,10 +417,22 @@ export async function enviarRecordatorioTurno(d: DatosTurno) {
     <strong>${fechaLarga(d.fecha)}</strong> a las <strong>${d.horaInicio}</strong>.</p>
     ${link ? `<p>Si necesitás cancelarlo o reprogramarlo: <a href="${link}">hacé click acá</a></p>` : ""}
   `;
-  return enviar(d.email, asunto, html, texto, d.claveEnvio);
+  const ok = await enviar(d.email, asunto, html, texto, d.claveEnvio);
+  return { enviado: ok, canal: ok ? "email" : null };
 }
 
-export async function enviarCancelacionTurno(d: DatosTurno) {
+export async function enviarCancelacionTurno(
+  d: DatosTurno,
+): Promise<ResultadoEnvio> {
+  const telefono = normalizarTelefonoWhatsApp(d.telefono);
+  if (telefono && whatsappConfigurado()) {
+    const ok = await enviarPlantillaWhatsApp(
+      telefono,
+      PLANTILLAS_WHATSAPP.cancelacion.nombre,
+      [d.nombrePaciente, d.medicoNombre, fechaLarga(d.fecha), d.horaInicio],
+    );
+    if (ok) return { enviado: true, canal: "whatsapp" };
+  }
   const asunto = "Tu turno fue cancelado";
   const texto =
     `Hola ${d.nombrePaciente}, te avisamos que la clínica canceló tu turno con ${d.medicoNombre} ` +
@@ -255,24 +442,35 @@ export async function enviarCancelacionTurno(d: DatosTurno) {
     <p>Te avisamos que la clínica canceló tu turno con <strong>${escaparHTML(d.medicoNombre)}</strong> del
     ${fechaLarga(d.fecha)} a las ${d.horaInicio}. Comunicate con nosotros para reprogramarlo.</p>
   `;
-  return enviar(d.email, asunto, html, texto, d.claveEnvio);
+  const ok = await enviar(d.email, asunto, html, texto, d.claveEnvio);
+  return { enviado: ok, canal: ok ? "email" : null };
 }
 
 export async function enviarReprogramacionPorLicencia(
   d: DatosTurno & { token: string; turnoId: string },
-) {
+): Promise<ResultadoEnvio> {
   const link = urlCompleta(
     `/mi-turno/${encodeURIComponent(d.token)}?reprogramar=${encodeURIComponent(d.turnoId)}`,
   );
+  const telefono = normalizarTelefonoWhatsApp(d.telefono);
+  if (telefono && whatsappConfigurado()) {
+    const ok = await enviarPlantillaWhatsApp(
+      telefono,
+      PLANTILLAS_WHATSAPP.reprogramacion.nombre,
+      [d.nombrePaciente, d.medicoNombre, fechaLarga(d.fecha), d.horaInicio, link],
+    );
+    if (ok) return { enviado: true, canal: "whatsapp" };
+  }
   const texto = `Hola ${d.nombrePaciente}, tu turno con ${d.medicoNombre} del ${fechaLarga(d.fecha)} a las ${d.horaInicio} debe ser reprogramado porque el profesional no estará disponible. Elegí una nueva fecha y horario desde este enlace: ${link}`;
   const html = `<p>Hola ${escaparHTML(d.nombrePaciente)},</p><p>Tu turno con <strong>${escaparHTML(d.medicoNombre)}</strong> del ${fechaLarga(d.fecha)} a las <strong>${d.horaInicio}</strong> debe ser reprogramado porque el profesional no estará disponible.</p><p><a href="${escaparHTML(link)}">Reprogramar mi turno</a></p>`;
-  return enviar(
+  const ok = await enviar(
     d.email,
     "Tu turno debe ser reprogramado",
     html,
     texto,
     d.claveEnvio,
   );
+  return { enviado: ok, canal: ok ? "email" : null };
 }
 
 export async function enviarLinkPaciente(

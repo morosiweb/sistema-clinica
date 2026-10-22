@@ -40,7 +40,12 @@ export async function procesarAvisosReprogramacion(
               where: { id: candidato.id },
               include: {
                 paciente: {
-                  select: { nombre: true, email: true, tokenAccesoEnc: true },
+                  select: {
+                    nombre: true,
+                    email: true,
+                    telefono: true,
+                    tokenAccesoEnc: true,
+                  },
                 },
                 medico: { include: { especialidad: true } },
               },
@@ -54,11 +59,14 @@ export async function procesarAvisosReprogramacion(
               (reprogramacionId && turno.reprogramacionId !== reprogramacionId)
             )
               return "omitido";
+            const tieneContacto =
+              !!turno.paciente.email || !!turno.paciente.telefono;
             let enviado = false;
             try {
-              if (turno.paciente.email)
-                enviado = await enviarReprogramacionPorLicencia({
+              if (tieneContacto)
+                ({ enviado } = await enviarReprogramacionPorLicencia({
                   email: turno.paciente.email,
+                  telefono: turno.paciente.telefono,
                   nombrePaciente: turno.paciente.nombre,
                   fecha: turno.fecha.toISOString(),
                   horaInicio: turno.horaInicio,
@@ -67,7 +75,7 @@ export async function procesarAvisosReprogramacion(
                   token: desencriptarToken(turno.paciente.tokenAccesoEnc),
                   turnoId: turno.id,
                   claveEnvio: `licencia/${turno.reprogramacionId}/${turno.id}`,
-                });
+                }));
             } catch {
               // Registrar únicamente un estado genérico; nunca enlaces ni destinatarios.
             }
@@ -84,16 +92,16 @@ export async function procesarAvisosReprogramacion(
                 avisoReprogramacionIntentadoEl: new Date(),
                 avisoReprogramacionError: enviado
                   ? null
-                  : turno.paciente.email
-                    ? "No se pudo enviar el correo. Se reintentará."
-                    : "El paciente no tiene email registrado.",
+                  : tieneContacto
+                    ? "No se pudo enviar el aviso. Se reintentará."
+                    : "El paciente no tiene email ni teléfono registrado.",
               },
             });
             return !cambio.count
               ? "omitido"
               : enviado
                 ? "enviado"
-                : turno.paciente.email
+                : tieneContacto
                   ? "fallido"
                   : "sin-email";
           },

@@ -49,6 +49,7 @@ async function PATCHHandler(
   if (turno.estado === "CANCELADO" && anterior.estado !== "CANCELADO")
     await enviarCancelacionTurno({
       email: anterior.paciente.email,
+      telefono: anterior.paciente.telefono,
       nombrePaciente: anterior.paciente.nombre,
       fecha: turno.fecha.toISOString(),
       horaInicio: turno.horaInicio,

@@ -89,6 +89,38 @@ Los avisos pendientes y los fallos se conservan en PostgreSQL. Se intentan despu
 
 Aplicar `202610200001_licencias_directas` con `npm run db:migrate` **antes de desplegar**. Agrega las marcas de reprogramación y seguimiento de avisos al turno y cambia el valor predeterminado de las nuevas licencias. Conserva turnos, notas, archivos, cuentas y las solicitudes anteriores pendientes, que el propio médico puede registrar desde su panel.
 
+## WhatsApp (canal preferido cuando hay teléfono)
+
+El código de verificación, la confirmación, el recordatorio, la cancelación y el aviso de reprogramación por licencia se intentan primero por WhatsApp cuando el paciente tiene teléfono y el canal está configurado; si no, se usa email como hoy. Nunca se envían los dos. El código para un DNI completamente nuevo (primera reserva) sigue yendo únicamente por email, porque en ese paso todavía no se guardó el teléfono.
+
+Variables de entorno:
+
+| Variable | Uso |
+| --- | --- |
+| `WHATSAPP_ACCESS_TOKEN` | Token permanente de un usuario del sistema con permiso `whatsapp_business_messaging`, generado en Meta Business Manager. |
+| `WHATSAPP_PHONE_NUMBER_ID` | ID del número de WhatsApp Business (no es el número de teléfono). |
+| `WHATSAPP_API_VERSION` | Versión de la Graph API, por ejemplo `v22.0`. Revisar la versión vigente en developers.facebook.com/docs/graph-api/changelog antes de desplegar; Meta retira versiones viejas periódicamente. |
+
+Pasos previos en Meta (fuera de este repositorio, los tiene que hacer quien administre la cuenta de la clínica):
+
+1. Crear o usar un **Meta Business Manager** y verificar el negocio (sube documentación de la clínica; puede tardar días).
+2. Agregar un número de teléfono dedicado a **WhatsApp Business Platform** (no puede ser un número que ya use la app común de WhatsApp Business).
+3. Generar un **token de acceso permanente** para un usuario del sistema con el permiso `whatsapp_business_messaging`.
+4. Crear y mandar a aprobar las plantillas de mensaje (en el administrador de WhatsApp, "Plantillas de mensaje"). Cada plantilla tiene que coincidir en nombre, idioma (`es_AR`) y cantidad/orden de variables con lo que define `PLANTILLAS_WHATSAPP` en `lib/notificaciones.ts`:
+   - `clinica_codigo_verificacion` — categoría **Autenticación**, 1 variable (el código). Meta genera el texto fijo de este tipo de plantilla; solo hay que activar la opción de vencimiento a 10 minutos.
+   - `clinica_turno_confirmado` — categoría **Utilidad**, 6 variables: nombre del paciente, médico, especialidad, fecha, hora, enlace de gestión.
+   - `clinica_turno_recordatorio` — categoría **Utilidad**, mismas 6 variables que la confirmación.
+   - `clinica_turno_cancelado` — categoría **Utilidad**, 4 variables: nombre del paciente, médico, fecha, hora (sin enlace).
+   - `clinica_turno_reprogramar` — categoría **Utilidad**, 5 variables: nombre del paciente, médico, fecha, hora, enlace para reprogramar.
+   La aprobación de Meta puede tardar de minutos a un día; hasta que una plantilla esté aprobada, los envíos de ese tipo de mensaje devuelven error y el sistema cae automáticamente al email.
+5. Cargar las dos variables en el entorno **Production** de Vercel y crear un nuevo despliegue (los cambios de entorno no actualizan despliegues anteriores, igual que con el correo).
+
+Los números de celular argentinos necesitan el prefijo `54 9` que el paciente casi nunca escribe así; `normalizarTelefonoWhatsApp` en `lib/notificaciones.ts` lo ajusta automáticamente a partir de lo que haya en `Paciente.telefono`. Si el teléfono no se puede normalizar a un número argentino válido, se usa el email sin error visible para el paciente. Esta normalización asume números argentinos: si la clínica atiende otro país, hay que revisar esa función antes de confiar en el envío por WhatsApp.
+
+A diferencia de Resend, la API de mensajes de Meta no tiene una clave de idempotencia propia. La protección contra un envío duplicado sigue siendo la misma que ya existe para el correo: el bloqueo por turno y el estado "enviado" que se vuelve a comprobar dentro de la transacción antes de reintentar.
+
+Esta función requiere aplicar `202610220001_whatsapp_notificaciones` con `npm run db:migrate` **antes de desplegar**. Agrega una sola columna opcional (`telefono`) a la tabla interna de verificación, para poder confirmar que el contacto no cambió entre pedir el código y confirmarlo; no modifica turnos, pacientes ni contraseñas existentes. Sin las variables de WhatsApp cargadas, el sistema sigue funcionando exactamente igual que hoy, solo por email.
+
 ## Actualizar una base anterior sin migraciones
 
 Respaldar y comprobar que las tablas coincidan con el esquema inicial. No ejecutar `migrate reset` ni borrar tablas.
