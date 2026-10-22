@@ -2249,16 +2249,7 @@ button.calendar-line:hover {
     letter-spacing: 1.5px;
   }
   .public-header nav {
-    gap: 13px;
-  }
-  .public-header .header-manage {
-    font-size: 14px;
-  }
-  .public-header .btn {
-    padding: 9px 11px;
-    min-height: 36px;
-    font-size: 14px;
-    gap: 5px;
+    display: none;
   }
   .landing-hero {
     grid-template-columns: 1fr;
@@ -3108,19 +3099,6 @@ button.calendar-line:hover {
   .public-header .brand {
     font-size: 23px;
     gap: 6px;
-  }
-  .public-header nav {
-    gap: 9px;
-  }
-  .public-header .btn {
-    font-size: 14px;
-    padding: 9px;
-  }
-  .public-header .header-manage {
-    font-size: 14px;
-  }
-  .public-header .btn > span {
-    display: none;
   }
   .workspace-status {
     display: none;
