@@ -167,9 +167,10 @@ svg {
   text-underline-offset: 4px;
 }
 .brand {
-  display: inline-grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: stretch;
+  /* Reservar el ancho del símbolo evita superposiciones en WebKit. */
+  --brand-symbol-size: calc(1.12em + 19px);
+  display: inline-flex;
+  align-items: center;
   gap: 10px;
   color: var(--ink);
   font-size: 30px;
@@ -183,10 +184,12 @@ svg {
 .brand-name {
   display: block;
   line-height: 1.12;
+  white-space: nowrap;
 }
 .brand-caption {
   display: block;
   font-size: 13px;
+  line-height: 1;
   letter-spacing: 2px;
   margin-top: 6px;
   font-weight: 500;
@@ -194,9 +197,9 @@ svg {
 .brand-symbol {
   position: relative;
   display: block;
-  width: auto;
-  height: auto;
-  aspect-ratio: 1;
+  width: var(--brand-symbol-size);
+  height: var(--brand-symbol-size);
+  flex: 0 0 var(--brand-symbol-size);
   background: #d8eae3;
   border-radius: 30% 30% 30% 8%;
 }
@@ -1177,6 +1180,7 @@ svg {
   padding: 0 0 33px;
 }
 .sidebar .brand {
+  --brand-symbol-size: calc(2.24em + 16px);
   min-width: 0;
   gap: 8px;
   font-size: 20px;
@@ -1184,6 +1188,9 @@ svg {
 }
 .sidebar .brand-copy {
   width: 5.6em;
+}
+.sidebar .brand-name {
+  white-space: normal;
 }
 .sidebar .brand-caption {
   font-size: 10px;
