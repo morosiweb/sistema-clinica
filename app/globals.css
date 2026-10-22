@@ -167,8 +167,9 @@ svg {
   text-underline-offset: 4px;
 }
 .brand {
-  display: inline-flex;
-  align-items: center;
+  display: inline-grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: stretch;
   gap: 10px;
   color: var(--ink);
   font-size: 30px;
@@ -193,30 +194,29 @@ svg {
 .brand-symbol {
   position: relative;
   display: block;
-  flex-shrink: 0;
-  width: 37px;
-  height: 37px;
+  width: auto;
+  height: auto;
+  aspect-ratio: 1;
   background: #d8eae3;
-  border-radius: 11px 11px 11px 3px;
+  border-radius: 30% 30% 30% 8%;
 }
 .brand-symbol:before,
 .brand-symbol:after {
   content: "";
   position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   background: var(--teal);
   border-radius: 2px;
 }
 .brand-symbol:before {
-  width: 20px;
-  height: 7px;
-  top: 15px;
-  left: 9px;
+  width: 54%;
+  height: 19%;
 }
 .brand-symbol:after {
-  width: 7px;
-  height: 20px;
-  top: 9px;
-  left: 15px;
+  width: 19%;
+  height: 54%;
 }
 .brand-light {
   color: #fff;
@@ -1174,12 +1174,16 @@ svg {
   z-index: 40;
 }
 .sidebar-brand {
-  padding: 0 14px 33px;
+  padding: 0 0 33px;
 }
 .sidebar .brand {
   min-width: 0;
+  gap: 8px;
   font-size: 20px;
   letter-spacing: -0.7px;
+}
+.sidebar .brand-copy {
+  width: 5.6em;
 }
 .sidebar .brand-caption {
   font-size: 10px;
@@ -2245,19 +2249,6 @@ button.calendar-line:hover {
   .brand {
     font-size: 25px;
     gap: 8px;
-  }
-  .brand-symbol {
-    width: 33px;
-    height: 33px;
-    border-radius: 9px 9px 9px 3px;
-  }
-  .brand-symbol:before {
-    left: 7px;
-    top: 13px;
-  }
-  .brand-symbol:after {
-    left: 13px;
-    top: 7px;
   }
   .brand-caption {
     font-size: 13px;
