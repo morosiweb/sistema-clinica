@@ -17,6 +17,7 @@ import {
   mensajeError,
   notificarTurnos,
 } from "@/lib/cliente";
+import { ETIQUETAS_ESTADO } from "@/lib/estados-turno";
 import { sumarDias } from "@/lib/fecha";
 
 type TurnoCal = {
@@ -108,13 +109,7 @@ function TarjetaTurno({
             ? "Por reprogramar"
             : nuevo
               ? "Por confirmar"
-              : t.estado === "CONFIRMADO"
-                ? "Confirmado"
-                : t.estado === "CANCELADO"
-                  ? "Cancelado"
-                  : t.estado === "ATENDIDO"
-                    ? "Atendido"
-                    : "Ausente"}
+              : (ETIQUETAS_ESTADO[t.estado] ?? t.estado)}
         </span>
       </button>
       {puedeConfirmar && nuevo && (

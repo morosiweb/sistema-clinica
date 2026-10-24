@@ -1,5 +1,5 @@
 import { conErrores } from "@/lib/errores";
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/api-auth";
 import { turnoParaInterno } from "@/lib/turno-dto";
@@ -8,7 +8,10 @@ import { crearTurnoSchema } from "@/lib/validations/turno";
 import { crearTurnoEnTx, HorarioOcupadoError } from "@/lib/turnos";
 import { crearTokenAcceso } from "@/lib/pacientes";
 import { transaccionAgenda } from "@/lib/transaccion";
+import { procesarAvisosTurno } from "@/lib/avisos-turno";
 import { ErrorClinica } from "@/lib/errores";
+
+export const maxDuration = 60;
 
 async function GETHandler(request: NextRequest) {
   const { session, response } = await requireSession(["turnos", "agenda"]);
@@ -105,6 +108,9 @@ async function POSTHandler(request: NextRequest) {
         canalReserva: "PRESENCIAL",
         realizadoPor: session.user.email ?? session.user.id,
       });
+    });
+    after(async () => {
+      await procesarAvisosTurno();
     });
     return NextResponse.json(turno, { status: 201 });
   } catch (e) {

@@ -7,10 +7,12 @@ import { desencriptarToken } from "@/lib/token";
 export async function procesarAvisosReprogramacion(
   reprogramacionId?: string,
   limite = 100,
+  ids?: string[],
 ) {
   const candidatos = await prisma.turno.findMany({
     where: {
       requiereReprogramacion: true,
+      ...(ids ? { id: { in: ids } } : {}),
       estado: "CANCELADO",
       avisoReprogramacionEnviado: false,
       reprogramacionId: reprogramacionId || { not: null },

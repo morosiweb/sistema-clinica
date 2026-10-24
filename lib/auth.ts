@@ -60,6 +60,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             email: usuario.email,
             rol: usuario.rol,
             medicoId: usuario.medicoId,
+            versionSesion: usuario.versionSesion,
           };
         });
       },

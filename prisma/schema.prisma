@@ -39,6 +39,9 @@ model Paciente {
   tokenGeneradoEl   DateTime          @default(now())
   ausenciasSinAviso Int               @default(0)
   versionFicha      Int               @default(0)
+  versionDatos      Int               @default(0)
+  revisionesDatos   RevisionDatosPaciente[]
+  borradores        BorradorClinico[]
   revisionesFicha   RevisionFicha[]
   turnos            Turno[]
   notasCompartidas  NotaPaciente[]
@@ -135,6 +138,9 @@ model BloqueoMedico {
 enum EstadoTurno {
   PENDIENTE
   CONFIRMADO
+  LLEGO
+  EN_ESPERA
+  EN_CONSULTA
   CANCELADO
   AUSENTE
   ATENDIDO
@@ -173,6 +179,7 @@ model Turno {
   recordatorioIntentadoEl        DateTime?
   revisionesNotas                RevisionNota[]
   historial                      HistorialTurno[]
+  avisos                         AvisoTurno[]
   pagos                          Pago[]
   createdAt                      DateTime         @default(now())
   updatedAt                      DateTime         @updatedAt
@@ -253,6 +260,9 @@ model UsuarioInterno {
   // Fuerza bruta de login: igual criterio que en ml-afiliados.
   intentosFallidos  Int               @default(0)
   bloqueadoHasta    DateTime?
+  versionSesion     Int               @default(0)
+  recuperaciones    RecuperacionCuenta[]
+  borradores        BorradorClinico[]
   // Pantallas a las que puede entrar (lista JSON de claves). null = todas
   // (admin). No aplica a MEDICO, que siempre ve solo su propia agenda.
   permisos          String?
@@ -342,4 +352,65 @@ model ArchivoPaciente {
   createdAt  DateTime       @default(now())
 
   @@index([pacienteId, createdAt])
+}
+
+model RevisionDatosPaciente {
+  id           String   @id @default(cuid())
+  pacienteId   String
+  paciente     Paciente @relation(fields: [pacienteId], references: [id])
+  version      Int
+  realizadoPor String
+  anterior     Json
+  posterior    Json
+  fecha        DateTime @default(now())
+
+  @@index([pacienteId, fecha])
+}
+
+model BorradorClinico {
+  id           String         @id @default(cuid())
+  usuarioId    String
+  usuario      UsuarioInterno @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  pacienteId   String
+  paciente     Paciente       @relation(fields: [pacienteId], references: [id])
+  tipo         String
+  referenciaId String
+  versionBase  Int
+  revision     Int            @default(1)
+  contenido    Json
+  updatedAt    DateTime       @updatedAt
+
+  @@unique([usuarioId, tipo, referenciaId])
+}
+
+model RecuperacionCuenta {
+  tokenHash    String         @id
+  usuarioId    String
+  usuario      UsuarioInterno @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  versionSesion Int
+  venceEl      DateTime
+  consumidoEl  DateTime?
+  createdAt    DateTime       @default(now())
+
+  @@index([venceEl])
+}
+
+model AvisoTurno {
+  id           String   @id @default(cuid())
+  turnoId      String
+  turno        Turno    @relation(fields: [turnoId], references: [id])
+  tipo         String
+  fecha        DateTime
+  horaInicio   String
+  medicoId     String
+  enviado      Boolean  @default(false)
+  descartado   Boolean  @default(false)
+  intentos     Int      @default(0)
+  error        String?
+  canal        String?
+  intentadoEl  DateTime?
+  createdAt    DateTime @default(now())
+
+  @@index([enviado, descartado, createdAt])
+  @@index([turnoId])
 }

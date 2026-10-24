@@ -3,12 +3,13 @@ import { enviarRecordatorioTurno } from "@/lib/notificaciones";
 import { instanteClinica, fechaClinica, fechaDB, sumarDias } from "@/lib/fecha";
 import { desencriptarToken } from "@/lib/token";
 
-export async function procesarRecordatorios() {
+export async function procesarRecordatorios(ids?: string[]) {
   const hoy = fechaClinica();
   const candidatos = await prisma.turno.findMany({
     where: {
-      estado: { in: ["PENDIENTE", "CONFIRMADO"] },
+      estado: "CONFIRMADO",
       recordatorioEnviado: false,
+      ...(ids ? { id: { in: ids } } : {}),
       fecha: { gte: fechaDB(hoy), lte: fechaDB(sumarDias(hoy, 2)) },
     },
     select: { id: true },
@@ -41,7 +42,7 @@ export async function procesarRecordatorios() {
           if (
             !turno ||
             turno.recordatorioEnviado ||
-            !["PENDIENTE", "CONFIRMADO"].includes(turno.estado)
+            turno.estado !== "CONFIRMADO"
           )
             return "omitido";
           const horas =

@@ -205,11 +205,31 @@ export async function enviar(
 // se registren en Meta.
 const IDIOMA_PLANTILLAS = "es_AR";
 export const PLANTILLAS_WHATSAPP = {
-  codigo: { nombre: "clinica_codigo_verificacion", categoria: "AUTHENTICATION", variables: 1 },
-  confirmacion: { nombre: "clinica_turno_confirmado", categoria: "UTILITY", variables: 6 },
-  recordatorio: { nombre: "clinica_turno_recordatorio", categoria: "UTILITY", variables: 6 },
-  cancelacion: { nombre: "clinica_turno_cancelado", categoria: "UTILITY", variables: 4 },
-  reprogramacion: { nombre: "clinica_turno_reprogramar", categoria: "UTILITY", variables: 5 },
+  codigo: {
+    nombre: "clinica_codigo_verificacion",
+    categoria: "AUTHENTICATION",
+    variables: 1,
+  },
+  confirmacion: {
+    nombre: "clinica_turno_confirmado",
+    categoria: "UTILITY",
+    variables: 6,
+  },
+  recordatorio: {
+    nombre: "clinica_turno_recordatorio",
+    categoria: "UTILITY",
+    variables: 6,
+  },
+  cancelacion: {
+    nombre: "clinica_turno_cancelado",
+    categoria: "UTILITY",
+    variables: 4,
+  },
+  reprogramacion: {
+    nombre: "clinica_turno_reprogramar",
+    categoria: "UTILITY",
+    variables: 5,
+  },
 } as const;
 
 function versionGraphAPI() {
@@ -339,7 +359,7 @@ export async function enviarCodigo(
   return { enviado: ok, canal: ok ? "email" : null };
 }
 
-type DatosTurno = {
+export type DatosTurno = {
   email: string | null;
   telefono?: string | null;
   nombrePaciente: string;
@@ -350,6 +370,36 @@ type DatosTurno = {
   token?: string;
   claveEnvio?: string;
 };
+
+export async function enviarSolicitudTurno(
+  d: DatosTurno,
+): Promise<ResultadoEnvio> {
+  const link = d.token ? urlCompleta(`/mi-turno/${d.token}`) : null;
+  const texto = `Hola ${d.nombrePaciente}, recibimos tu solicitud de turno con ${d.medicoNombre} para el ${fechaLarga(d.fecha)} a las ${d.horaInicio}. Está pendiente de confirmación por secretaría. Te avisaremos cuando quede confirmada.${link ? `\nGestioná tu solicitud: ${link}` : ""}`;
+  const ok = await enviar(
+    d.email,
+    "Solicitud de turno recibida",
+    `<p>${escaparHTML(texto)}</p>${link ? `<p><a href="${escaparHTML(link)}">Gestionar mi solicitud</a></p>` : ""}`,
+    texto,
+    d.claveEnvio,
+  );
+  return { enviado: ok, canal: ok ? "email" : null };
+}
+
+export async function enviarCambioTurno(
+  d: DatosTurno,
+): Promise<ResultadoEnvio> {
+  const link = d.token ? urlCompleta(`/mi-turno/${d.token}`) : null;
+  const texto = `Hola ${d.nombrePaciente}, secretaría reprogramó y confirmó tu turno con ${d.medicoNombre} (${d.especialidad}) para el ${fechaLarga(d.fecha)} a las ${d.horaInicio}.${link ? `\nGestioná tu turno: ${link}` : ""}`;
+  const ok = await enviar(
+    d.email,
+    "Tu turno fue reprogramado",
+    `<p>${escaparHTML(texto)}</p>${link ? `<p><a href="${escaparHTML(link)}">Ver mi turno</a></p>` : ""}`,
+    texto,
+    d.claveEnvio,
+  );
+  return { enviado: ok, canal: ok ? "email" : null };
+}
 
 export async function enviarConfirmacionTurno(
   d: DatosTurno,
@@ -457,7 +507,13 @@ export async function enviarReprogramacionPorLicencia(
     const ok = await enviarPlantillaWhatsApp(
       telefono,
       PLANTILLAS_WHATSAPP.reprogramacion.nombre,
-      [d.nombrePaciente, d.medicoNombre, fechaLarga(d.fecha), d.horaInicio, link],
+      [
+        d.nombrePaciente,
+        d.medicoNombre,
+        fechaLarga(d.fecha),
+        d.horaInicio,
+        link,
+      ],
     );
     if (ok) return { enviado: true, canal: "whatsapp" };
   }

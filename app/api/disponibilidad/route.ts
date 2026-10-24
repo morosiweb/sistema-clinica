@@ -1,7 +1,10 @@
 import { conErrores } from "@/lib/errores";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/api-auth";
-import { obtenerSlotsDisponibles } from "@/lib/disponibilidad";
+import {
+  obtenerProximaDisponibilidad,
+  obtenerSlotsDisponibles,
+} from "@/lib/disponibilidad";
 
 async function GETHandler(request: NextRequest) {
   const { session, response } = await requireSession(["turnos"]);
@@ -16,6 +19,11 @@ async function GETHandler(request: NextRequest) {
     );
   }
 
+  if (request.nextUrl.searchParams.get("proxima") === "1") {
+    return NextResponse.json({
+      proxima: await obtenerProximaDisponibilidad(medicoId, fecha),
+    });
+  }
   const slots = await obtenerSlotsDisponibles(medicoId, fecha);
   return NextResponse.json({ slots });
 }

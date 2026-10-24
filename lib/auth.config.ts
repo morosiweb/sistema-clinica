@@ -10,6 +10,7 @@ export const authConfig = {
       const { pathname } = request.nextUrl;
       const isOnLogin = pathname.startsWith("/login");
 
+      if (isOnLogin && pathname !== "/login") return true;
       if (isOnLogin) {
         if (isLoggedIn)
           return Response.redirect(new URL("/panel", request.nextUrl));
@@ -37,6 +38,7 @@ export const authConfig = {
     jwt({ token, user }) {
       if (user) {
         token.id = user.id as string;
+        token.versionSesion = user.versionSesion ?? 0;
         token.rol = user.rol as "ADMIN" | "SECRETARIA" | "MEDICO";
         token.medicoId = (user.medicoId as string | null) ?? null;
       }
@@ -45,6 +47,7 @@ export const authConfig = {
     session({ session, token }) {
       if (session.user) {
         session.user.id = token.id;
+        session.user.versionSesion = token.versionSesion ?? 0;
         session.user.rol = token.rol;
         session.user.medicoId = token.medicoId;
       }

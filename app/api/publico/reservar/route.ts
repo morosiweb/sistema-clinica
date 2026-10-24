@@ -12,9 +12,11 @@ import {
   origenSolicitud,
 } from "@/lib/verificacion";
 import { desencriptarToken } from "@/lib/token";
-import { enviarConfirmacionTurno } from "@/lib/notificaciones";
+import { resultadoAviso } from "@/lib/avisos-turno";
 import { ErrorClinica } from "@/lib/errores";
 import { fechaDB, fechaClinica } from "@/lib/fecha";
+export const maxDuration = 60;
+
 async function POSTHandler(request: NextRequest) {
   const data = reservaPublicaSchema.parse(await request.json());
   await limitarSolicitud(`reservar:${origenSolicitud(request)}`, 20);
@@ -54,7 +56,9 @@ async function POSTHandler(request: NextRequest) {
       where: {
         pacienteId: paciente.id,
         fecha: { gte: fechaDB(fechaClinica()) },
-        estado: { in: ["PENDIENTE", "CONFIRMADO"] },
+        estado: {
+          in: ["PENDIENTE", "CONFIRMADO", "LLEGO", "EN_ESPERA", "EN_CONSULTA"],
+        },
       },
     });
     if (pendientes >= 5)
@@ -80,21 +84,12 @@ async function POSTHandler(request: NextRequest) {
   });
   if (!resultado)
     return NextResponse.json({ error: ERROR_CODIGO }, { status: 400 });
-  const { turno, paciente, token } = resultado;
-  const medico = await prisma.medico.findUniqueOrThrow({
-    where: { id: turno.medicoId },
-    include: { especialidad: true },
+  const { turno, token } = resultado;
+  const aviso = await prisma.avisoTurno.findFirstOrThrow({
+    where: { turnoId: turno.id, tipo: "SOLICITUD" },
+    orderBy: { createdAt: "desc" },
   });
-  const notificacion = await enviarConfirmacionTurno({
-    email: paciente.email,
-    telefono: paciente.telefono,
-    nombrePaciente: paciente.nombre,
-    fecha: turno.fecha.toISOString(),
-    horaInicio: turno.horaInicio,
-    medicoNombre: `${medico.nombre} ${medico.apellido}`,
-    especialidad: medico.especialidad.nombre,
-    token,
-  });
+  const notificacion = await resultadoAviso(aviso.id);
   return NextResponse.json(
     {
       turno: { id: turno.id },

@@ -37,6 +37,7 @@ export function MiTurnoPanel({
   const [pagina, setPagina] = useState(1);
   const recurso = useRecurso<Panel>(
     `/api/publico/mi-turno/${token}?${new URLSearchParams({ pagina: String(pagina), ...(turnoInicialId ? { turnoId: turnoInicialId } : {}) })}`,
+    5000,
   );
   const [error, setError] = useState("");
   const [ocupado, setOcupado] = useState(false);
@@ -154,6 +155,11 @@ export function MiTurnoPanel({
           Reservar otro turno
         </Link>
       </header>
+      {recurso.error && (
+        <p role="alert" className="notice">
+          No pudimos actualizar tus turnos. {recurso.error}
+        </p>
+      )}
       {error && (
         <p role="alert" className="text-sm text-red-600">
           {error}

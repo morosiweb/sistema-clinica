@@ -49,7 +49,9 @@ export function registrarLicencia(
           gte: fechaDB(data.fecha),
           lte: fechaDB(data.fechaHasta || data.fecha),
         },
-        estado: { in: ["PENDIENTE", "CONFIRMADO"] },
+        estado: {
+          in: ["PENDIENTE", "CONFIRMADO", "LLEGO", "EN_ESPERA", "EN_CONSULTA"],
+        },
         horaInicio: { lt: data.horaFin || "24:00" },
         horaFin: { gt: data.horaInicio || "00:00" },
       },

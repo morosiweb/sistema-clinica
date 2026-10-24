@@ -1,6 +1,10 @@
+import { limitarSolicitud, origenSolicitud } from "@/lib/verificacion";
 import { conErrores } from "@/lib/errores";
 import { NextRequest, NextResponse } from "next/server";
-import { obtenerSlotsDisponibles } from "@/lib/disponibilidad";
+import {
+  obtenerProximaDisponibilidad,
+  obtenerSlotsDisponibles,
+} from "@/lib/disponibilidad";
 
 async function GETHandler(request: NextRequest) {
   const medicoId = request.nextUrl.searchParams.get("medicoId");
@@ -10,6 +14,12 @@ async function GETHandler(request: NextRequest) {
       { error: "Faltan medicoId y fecha" },
       { status: 400 },
     );
+  }
+  if (request.nextUrl.searchParams.get("proxima") === "1") {
+    await limitarSolicitud(`proxima:${origenSolicitud(request)}`, 30);
+    return NextResponse.json({
+      proxima: await obtenerProximaDisponibilidad(medicoId, fecha),
+    });
   }
   const slots = await obtenerSlotsDisponibles(medicoId, fecha);
   return NextResponse.json({ slots });

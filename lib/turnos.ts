@@ -6,7 +6,9 @@ import {
   minutos,
   horaDesdeMinutos,
 } from "@/lib/disponibilidad";
-import { fechaDB, instanteClinica } from "@/lib/fecha";
+import { fechaDB, fechaClinica, instanteClinica } from "@/lib/fecha";
+import { programarAviso } from "@/lib/avisos-turno";
+import { ESTADOS_RESERVADOS } from "@/lib/estados-turno";
 import { ErrorClinica } from "@/lib/errores";
 import { fechaSchema, horaSchema } from "@/lib/validations/comun";
 
@@ -45,6 +47,31 @@ export async function validarSlot(
   return slot;
 }
 
+export async function validarPacienteDisponible(
+  tx: Transaccion,
+  pacienteId: string,
+  fecha: string,
+  slot: { horaInicio: string; horaFin: string },
+  excluir?: string,
+) {
+  const otro = await tx.turno.findFirst({
+    where: {
+      pacienteId,
+      fecha: fechaDB(fecha),
+      estado: { in: [...ESTADOS_RESERVADOS] },
+      horaInicio: { lt: slot.horaFin },
+      horaFin: { gt: slot.horaInicio },
+      ...(excluir ? { id: { not: excluir } } : {}),
+    },
+    select: { id: true },
+  });
+  if (otro)
+    throw new ErrorClinica(
+      "El paciente ya tiene otro turno en ese horario. Elegí un horario que no se superponga.",
+      409,
+    );
+}
+
 type Reserva = {
   pacienteId: string;
   medicoId: string;
@@ -56,6 +83,7 @@ type Reserva = {
 };
 export async function crearTurnoEnTx(tx: Transaccion, p: Reserva) {
   const slot = await validarSlot(tx, p.medicoId, p.fecha, p.horaInicio);
+  await validarPacienteDisponible(tx, p.pacienteId, p.fecha, slot);
   const turno = await tx.turno.create({
     data: {
       pacienteId: p.pacienteId,
@@ -68,6 +96,11 @@ export async function crearTurnoEnTx(tx: Transaccion, p: Reserva) {
       historial: { create: { accion: "CREADO", realizadoPor: p.realizadoPor } },
     },
   });
+  await programarAviso(
+    tx,
+    turno,
+    p.canalReserva === "ONLINE" ? "SOLICITUD" : "CONFIRMACION",
+  );
   return turno;
 }
 export function crearTurno(p: Reserva) {
@@ -107,15 +140,30 @@ export function reprogramarTurno(p: {
   fecha: string;
   horaInicio: string;
   realizadoPor: string;
+  interno?: boolean;
 }) {
   return transaccionAgenda(async (tx) => {
-    const actual = await turnoDelPaciente(
-      tx,
-      p.turnoId,
-      p.pacienteId,
-      p.version,
-    );
-    if (actual.notasMedico && actual.medicoId !== p.medicoId)
+    const actual = p.interno
+      ? await tx.turno.findUniqueOrThrow({ where: { id: p.turnoId } })
+      : await turnoDelPaciente(tx, p.turnoId, p.pacienteId, p.version);
+    if (actual.pacienteId !== p.pacienteId)
+      throw new ErrorClinica("Turno no encontrado", 404);
+    comprobarVersion(actual.version, p.version);
+    if (
+      p.interno &&
+      !["PENDIENTE", "CONFIRMADO", "LLEGO", "EN_ESPERA"].some(
+        (e) => e === actual.estado,
+      ) &&
+      !(actual.estado === "CANCELADO" && actual.requiereReprogramacion)
+    )
+      throw new ErrorClinica("Este turno ya no puede reprogramarse", 409);
+    const tieneRevisiones =
+      actual.medicoId !== p.medicoId &&
+      (await tx.revisionNota.count({ where: { turnoId: actual.id } }));
+    if (
+      (actual.notasMedico || tieneRevisiones) &&
+      actual.medicoId !== p.medicoId
+    )
       throw new ErrorClinica(
         "Para cambiar de médico en este turno, comunicate con la clínica.",
       );
@@ -126,13 +174,14 @@ export function reprogramarTurno(p: {
       p.horaInicio,
       p.turnoId,
     );
-    return tx.turno.update({
+    await validarPacienteDisponible(tx, p.pacienteId, p.fecha, slot, p.turnoId);
+    const turno = await tx.turno.update({
       where: { id: p.turnoId, version: p.version },
       data: {
         medicoId: p.medicoId,
         fecha: fechaDB(p.fecha),
         ...slot,
-        estado: "PENDIENTE",
+        estado: p.interno ? "CONFIRMADO" : "PENDIENTE",
         requiereReprogramacion: false,
         version: { increment: 1 },
         recordatorioEnviado: false,
@@ -148,6 +197,8 @@ export function reprogramarTurno(p: {
       },
       include: { medico: { include: { especialidad: true } } },
     });
+    await programarAviso(tx, turno, p.interno ? "REPROGRAMACION" : "SOLICITUD");
+    return turno;
   });
 }
 
@@ -180,7 +231,34 @@ export function cancelarTurnoPaciente(p: {
 type Viewer = { rol: RolInterno; medicoId: string | null; id: string };
 const TRANSICIONES: Record<EstadoTurno, EstadoTurno[]> = {
   PENDIENTE: ["PENDIENTE", "CONFIRMADO", "CANCELADO", "AUSENTE", "ATENDIDO"],
-  CONFIRMADO: ["CONFIRMADO", "PENDIENTE", "CANCELADO", "AUSENTE", "ATENDIDO"],
+  CONFIRMADO: [
+    "CONFIRMADO",
+    "PENDIENTE",
+    "LLEGO",
+    "EN_ESPERA",
+    "EN_CONSULTA",
+    "CANCELADO",
+    "AUSENTE",
+    "ATENDIDO",
+  ],
+  LLEGO: [
+    "LLEGO",
+    "CONFIRMADO",
+    "EN_ESPERA",
+    "EN_CONSULTA",
+    "CANCELADO",
+    "AUSENTE",
+    "ATENDIDO",
+  ],
+  EN_ESPERA: [
+    "EN_ESPERA",
+    "LLEGO",
+    "EN_CONSULTA",
+    "CANCELADO",
+    "AUSENTE",
+    "ATENDIDO",
+  ],
+  EN_CONSULTA: ["EN_CONSULTA", "EN_ESPERA", "ATENDIDO", "CANCELADO"],
   CANCELADO: ["CANCELADO", "PENDIENTE", "CONFIRMADO"],
   AUSENTE: ["AUSENTE", "ATENDIDO", "CANCELADO"],
   ATENDIDO: ["ATENDIDO"],
@@ -211,18 +289,37 @@ export function actualizarTurno(
       throw new ErrorClinica("Ese cambio de estado no está permitido", 409);
     if (
       data.estado !== actual.estado &&
+      ["LLEGO", "EN_ESPERA", "EN_CONSULTA"].includes(data.estado) &&
+      actual.fecha.toISOString().slice(0, 10) !== fechaClinica()
+    )
+      throw new ErrorClinica(
+        "La llegada y la atención se registran el día del turno",
+      );
+    if (data.estado === "EN_CONSULTA" && viewer.rol === "SECRETARIA")
+      throw new ErrorClinica("El médico debe iniciar la consulta", 403);
+    if (
+      data.estado !== actual.estado &&
+      actual.estado !== "EN_CONSULTA" &&
       ["ATENDIDO", "AUSENTE"].includes(data.estado) &&
       horasHastaElTurno(actual.fecha, actual.horaInicio) > 0
     )
       throw new ErrorClinica("El turno todavía no comenzó");
-    if (actual.estado === "CANCELADO" && data.estado !== "CANCELADO")
-      await validarSlot(
+    if (actual.estado === "CANCELADO" && data.estado !== "CANCELADO") {
+      const slot = await validarSlot(
         tx,
         actual.medicoId,
         actual.fecha.toISOString().slice(0, 10),
         actual.horaInicio,
         id,
       );
+      await validarPacienteDisponible(
+        tx,
+        actual.pacienteId,
+        actual.fecha.toISOString().slice(0, 10),
+        slot,
+        id,
+      );
+    }
     const puedeEscribirNotas =
       viewer.rol === "MEDICO" || viewer.rol === "ADMIN";
     const notas =
@@ -271,6 +368,10 @@ export function actualizarTurno(
         data: { ausenciasSinAviso: cantidad },
       });
     }
+    if (actual.estado !== data.estado && data.estado === "CONFIRMADO")
+      await programarAviso(tx, turno, "CONFIRMACION");
+    if (actual.estado !== data.estado && data.estado === "CANCELADO")
+      await programarAviso(tx, turno, "CANCELACION");
     return { turno, anterior: actual };
   });
 }

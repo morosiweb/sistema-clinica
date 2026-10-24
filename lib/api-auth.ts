@@ -12,9 +12,20 @@ async function sesionVigente(claves?: readonly string[]) {
 
   const usuario = await prisma.usuarioInterno.findUnique({
     where: { id: session.user.id },
-    select: { activo: true, rol: true, medicoId: true, permisos: true },
+    select: {
+      activo: true,
+      rol: true,
+      medicoId: true,
+      permisos: true,
+      versionSesion: true,
+    },
   });
-  if (!usuario || !usuario.activo) return null;
+  if (
+    !usuario ||
+    !usuario.activo ||
+    usuario.versionSesion !== (session.user.versionSesion ?? 0)
+  )
+    return null;
 
   session.user.rol = usuario.rol;
   session.user.medicoId = usuario.medicoId;

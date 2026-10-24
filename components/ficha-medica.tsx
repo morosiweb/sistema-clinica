@@ -1,5 +1,12 @@
 "use client";
 
+import { AvisoBorrador } from "@/components/aviso-borrador";
+import { useBorradorClinico } from "@/lib/borrador-clinico";
+import {
+  confirmarSalida,
+  useCambiosSinGuardar,
+} from "@/lib/cambios-sin-guardar";
+import { MAX_NOTA_CLINICA } from "@/lib/estados-turno";
 import { useState } from "react";
 import { useHoy } from "@/lib/cliente";
 import { RevisionesClinicas } from "@/components/revisiones-clinicas";
@@ -27,6 +34,7 @@ export function FichaMedica({
   puedeRegistrarVisita?: boolean;
 }) {
   const router = useRouter();
+  const [version, setVersion] = useState(inicial.versionFicha);
   const [pesoKg, setPesoKg] = useState(inicial.pesoKg?.toString() ?? "");
   const [alturaCm, setAlturaCm] = useState(inicial.alturaCm?.toString() ?? "");
   const [grupoSanguineo, setGrupoSanguineo] = useState(
@@ -46,6 +54,46 @@ export function FichaMedica({
   const [notasVisita, setNotasVisita] = useState("");
   const [guardandoVisita, setGuardandoVisita] = useState(false);
   const [errorVisita, setErrorVisita] = useState<string | null>(null);
+  const fichaActual = {
+    pesoKg,
+    alturaCm,
+    grupoSanguineo,
+    alergias,
+    antecedentes,
+  };
+  const [guardado, setGuardado] = useState(
+    JSON.stringify({
+      pesoKg: inicial.pesoKg?.toString() ?? "",
+      alturaCm: inicial.alturaCm?.toString() ?? "",
+      grupoSanguineo: inicial.grupoSanguineo ?? "",
+      alergias: inicial.alergias ?? "",
+      antecedentes: inicial.antecedentes ?? "",
+    }),
+  );
+  const sucio = JSON.stringify(fichaActual) !== guardado;
+  const visitaSucia =
+    mostrarVisita && !!(diaVisita || horaVisita || motivoVisita || notasVisita);
+  useCambiosSinGuardar(sucio || visitaSucia);
+  const borrador = useBorradorClinico(
+    "ficha",
+    pacienteId,
+    version,
+    fichaActual,
+    sucio,
+  );
+  const visita = useBorradorClinico(
+    "visita",
+    pacienteId,
+    version,
+    {
+      fecha: fechaVisita,
+      horaInicio: horaVisita,
+      motivoConsulta: motivoVisita,
+      notasMedico: notasVisita,
+    },
+    visitaSucia,
+    puedeRegistrarVisita,
+  );
 
   async function guardarFicha() {
     try {
@@ -55,7 +103,7 @@ export function FichaMedica({
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          versionFicha: inicial.versionFicha,
+          versionFicha: version,
           pesoKg,
           alturaCm,
           grupoSanguineo,
@@ -73,6 +121,10 @@ export function FichaMedica({
         );
         return;
       }
+      const actualizado = await res.json();
+      setVersion(actualizado.versionFicha);
+      setGuardado(JSON.stringify(fichaActual));
+      await borrador.limpiar().catch(() => {});
       router.refresh();
     } catch (error) {
       setError(
@@ -114,6 +166,7 @@ export function FichaMedica({
         );
         return;
       }
+      await visita.limpiar().catch(() => {});
       setMostrarVisita(false);
       setHoraVisita("");
       setMotivoVisita("");
@@ -134,6 +187,22 @@ export function FichaMedica({
     <div className="space-y-6">
       <div>
         <h2 className="mb-2 text-sm font-semibold">Ficha médica</h2>
+        <AvisoBorrador
+          disponible={!!borrador.disponible}
+          obsoleto={borrador.disponible?.versionBase !== version}
+          estado={borrador.estado}
+          restaurar={() => {
+            const data = borrador.restaurar();
+            if (data) {
+              setPesoKg(data.pesoKg);
+              setAlturaCm(data.alturaCm);
+              setGrupoSanguineo(data.grupoSanguineo);
+              setAlergias(data.alergias);
+              setAntecedentes(data.antecedentes);
+            }
+          }}
+          descartar={borrador.limpiar}
+        />
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
             <label
@@ -178,6 +247,7 @@ export function FichaMedica({
           <input
             id="ficha-medica-campo-3"
             className={inputClass}
+            maxLength={10}
             value={grupoSanguineo}
             onChange={(e) => setGrupoSanguineo(e.target.value)}
           />
@@ -193,6 +263,7 @@ export function FichaMedica({
             id="ficha-medica-campo-4"
             className={inputClass}
             rows={2}
+            maxLength={500}
             value={alergias}
             onChange={(e) => setAlergias(e.target.value)}
           />
@@ -208,6 +279,7 @@ export function FichaMedica({
             id="ficha-medica-campo-5"
             className={inputClass}
             rows={2}
+            maxLength={1000}
             value={antecedentes}
             onChange={(e) => setAntecedentes(e.target.value)}
           />
@@ -222,13 +294,25 @@ export function FichaMedica({
         </button>
       </div>
 
-      <RevisionesClinicas
-        tipo="ficha"
-        id={pacienteId}
-        version={inicial.versionFicha}
-      />
+      <RevisionesClinicas tipo="ficha" id={pacienteId} version={version} />
       {puedeRegistrarVisita && (
         <div>
+          <AvisoBorrador
+            disponible={!!visita.disponible}
+            obsoleto={visita.disponible?.versionBase !== version}
+            estado={visita.estado}
+            restaurar={() => {
+              const data = visita.restaurar();
+              if (data) {
+                setMostrarVisita(true);
+                setFechaVisita(data.fecha);
+                setHoraVisita(data.horaInicio);
+                setMotivoVisita(data.motivoConsulta);
+                setNotasVisita(data.notasMedico);
+              }
+            }}
+            descartar={visita.limpiar}
+          />
           {!mostrarVisita ? (
             <button
               onClick={() => setMostrarVisita(true)}
@@ -286,6 +370,7 @@ export function FichaMedica({
                 <input
                   id="ficha-medica-campo-8"
                   className={inputClass}
+                  maxLength={300}
                   value={motivoVisita}
                   onChange={(e) => setMotivoVisita(e.target.value)}
                 />
@@ -300,10 +385,15 @@ export function FichaMedica({
                 <textarea
                   id="ficha-medica-campo-9"
                   className={inputClass}
-                  rows={2}
+                  rows={8}
+                  maxLength={MAX_NOTA_CLINICA}
                   value={notasVisita}
                   onChange={(e) => setNotasVisita(e.target.value)}
                 />
+                <p className="text-sm text-neutral-500">
+                  {notasVisita.length.toLocaleString("es-AR")} /{" "}
+                  {MAX_NOTA_CLINICA.toLocaleString("es-AR")} caracteres
+                </p>
               </div>
               {errorVisita && (
                 <p className="text-sm text-red-600">{errorVisita}</p>
@@ -318,7 +408,9 @@ export function FichaMedica({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setMostrarVisita(false)}
+                  onClick={() => {
+                    if (confirmarSalida()) setMostrarVisita(false);
+                  }}
                   className="rounded-md border border-neutral-300 px-4 py-2 text-sm dark:border-neutral-700"
                 >
                   Cancelar

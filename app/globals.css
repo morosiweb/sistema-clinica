@@ -178,6 +178,31 @@ svg {
   letter-spacing: -1.4px;
   line-height: 1;
 }
+
+.account-public {
+  width: min(100% - 32px, 520px);
+  margin: 48px auto;
+  padding: 28px;
+}
+.account-link {
+  display: block;
+  margin-top: 4px;
+  color: #a1d6c7;
+  font-size: 13px;
+}
+.status-llego,
+.status-en_espera {
+  background: #e8f0e4;
+  color: #476444;
+}
+.status-en_consulta {
+  background: #e5edf3;
+  color: #3e5f79;
+}
+.pending-list {
+  display: grid;
+  gap: 12px;
+}
 .brand-copy {
   min-width: 0;
 }

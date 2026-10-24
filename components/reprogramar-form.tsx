@@ -1,4 +1,5 @@
 "use client";
+import { ProximaDisponibilidad } from "@/components/proxima-disponibilidad";
 import { useState } from "react";
 import { mensajeError, useHoy, useRecurso } from "@/lib/cliente";
 type Medico = {
@@ -9,10 +10,12 @@ type Medico = {
 };
 export function ReprogramarForm({
   medicoActualId,
+  interno = false,
   onConfirmar,
   onCancelar,
 }: {
   medicoActualId: string;
+  interno?: boolean;
   onConfirmar: (
     medicoId: string,
     fecha: string,
@@ -27,10 +30,12 @@ export function ReprogramarForm({
   const [hora, setHora] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState("");
-  const medicos = useRecurso<Medico[]>("/api/publico/medicos");
+  const medicos = useRecurso<Medico[]>(
+    interno ? "/api/medicos" : "/api/publico/medicos",
+  );
   const slots = useRecurso<{ slots: string[] }>(
     fecha && medicoId
-      ? `/api/publico/disponibilidad?${new URLSearchParams({ medicoId, fecha })}`
+      ? `${interno ? "/api" : "/api/publico"}/disponibilidad?${new URLSearchParams({ medicoId, fecha })}`
       : null,
   );
   async function confirmar(e: React.FormEvent) {
@@ -82,6 +87,15 @@ export function ReprogramarForm({
           className="field-input"
         />
       </label>
+      <ProximaDisponibilidad
+        medicoId={medicoId}
+        fecha={fecha}
+        interno={interno}
+        onElegir={(dia, h) => {
+          setDia(dia);
+          setHora(h);
+        }}
+      />
       {slots.cargando ? (
         <p>Cargando horarios…</p>
       ) : (

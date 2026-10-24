@@ -1,3 +1,4 @@
+import { ESTADOS_TURNO, MAX_NOTA_CLINICA } from "@/lib/estados-turno";
 import { z } from "zod";
 import { pacienteSchema } from "@/lib/validations/paciente";
 import {
@@ -21,15 +22,14 @@ export const crearTurnoSchema = z
   );
 
 export const actualizarTurnoSchema = z.object({
-  estado: z.enum([
-    "PENDIENTE",
-    "CONFIRMADO",
-    "CANCELADO",
-    "AUSENTE",
-    "ATENDIDO",
-  ]),
+  estado: z.enum(ESTADOS_TURNO),
   notasSecretaria: z.string().trim().max(1000).optional().or(z.literal("")),
-  notasMedico: z.string().trim().max(1000).optional().or(z.literal("")),
+  notasMedico: z
+    .string()
+    .trim()
+    .max(MAX_NOTA_CLINICA)
+    .optional()
+    .or(z.literal("")),
   version: versionSchema,
 });
 

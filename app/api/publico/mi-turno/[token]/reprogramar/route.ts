@@ -2,7 +2,10 @@ import { conErrores } from "@/lib/errores";
 import { NextRequest, NextResponse } from "next/server";
 import { pacientePorToken, reprogramarTurno } from "@/lib/turnos";
 import { reprogramarTurnoSchema } from "@/lib/validations/publico";
-import { enviarConfirmacionTurno } from "@/lib/notificaciones";
+import { prisma } from "@/lib/prisma";
+import { resultadoAviso } from "@/lib/avisos-turno";
+export const maxDuration = 60;
+
 async function POSTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ token: string }> },
@@ -15,16 +18,11 @@ async function POSTHandler(
     pacienteId: paciente.id,
     realizadoPor: `paciente:${paciente.id}`,
   });
-  const notificacion = await enviarConfirmacionTurno({
-    email: paciente.email,
-    telefono: paciente.telefono,
-    nombrePaciente: paciente.nombre,
-    fecha: turno.fecha.toISOString(),
-    horaInicio: turno.horaInicio,
-    medicoNombre: `${turno.medico.nombre} ${turno.medico.apellido}`,
-    especialidad: turno.medico.especialidad.nombre,
-    token,
+  const aviso = await prisma.avisoTurno.findFirstOrThrow({
+    where: { turnoId: turno.id, tipo: "SOLICITUD" },
+    orderBy: { createdAt: "desc" },
   });
+  const notificacion = await resultadoAviso(aviso.id);
   return NextResponse.json({ ok: true, notificacion });
 }
 

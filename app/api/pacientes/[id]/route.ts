@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/api-auth";
 import { pacienteSchema } from "@/lib/validations/paciente";
 import { pacienteSelectSeguro } from "@/lib/pacientes";
+import { versionSchema } from "@/lib/validations/comun";
+import { comprobarVersion } from "@/lib/turnos";
 
 async function GETHandler(
   _request: NextRequest,
@@ -33,7 +35,9 @@ async function PATCHHandler(
 
   const { id } = await params;
   const body = await request.json();
-  const parsed = pacienteSchema.safeParse(body);
+  const parsed = pacienteSchema
+    .extend({ versionDatos: versionSchema })
+    .safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
       { error: parsed.error.issues[0]?.message || "Datos inválidos" },
@@ -52,10 +56,16 @@ async function PATCHHandler(
     );
   }
 
-  const paciente = await transaccionAgenda((tx) =>
-    tx.paciente.update({
+  const paciente = await transaccionAgenda(async (tx) => {
+    const anterior = await tx.paciente.findUniqueOrThrow({
       where: { id },
+      select: pacienteSelectSeguro,
+    });
+    comprobarVersion(anterior.versionDatos, data.versionDatos);
+    const posterior = await tx.paciente.update({
+      where: { id, versionDatos: data.versionDatos },
       data: {
+        versionDatos: { increment: 1 },
         dni: data.dni,
         nombre: data.nombre,
         apellido: data.apellido,
@@ -67,8 +77,27 @@ async function PATCHHandler(
         obraSocial: data.obraSocial || null,
       },
       select: pacienteSelectSeguro,
-    }),
-  );
+    });
+    const datos = (p: typeof anterior) => ({
+      dni: p.dni,
+      nombre: p.nombre,
+      apellido: p.apellido,
+      telefono: p.telefono,
+      email: p.email,
+      fechaNacimiento: p.fechaNacimiento?.toISOString().slice(0, 10) ?? null,
+      obraSocial: p.obraSocial,
+    });
+    await tx.revisionDatosPaciente.create({
+      data: {
+        pacienteId: id,
+        version: posterior.versionDatos,
+        realizadoPor: session.user.id,
+        anterior: datos(anterior),
+        posterior: datos(posterior),
+      },
+    });
+    return posterior;
+  });
 
   return NextResponse.json(paciente);
 }

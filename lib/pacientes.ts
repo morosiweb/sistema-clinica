@@ -13,6 +13,7 @@ export const pacienteSelectSeguro = {
   email: true,
   fechaNacimiento: true,
   obraSocial: true,
+  versionDatos: true,
   createdAt: true,
   updatedAt: true,
 } as const;

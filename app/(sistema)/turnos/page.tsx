@@ -1,3 +1,4 @@
+import { BandejaPendientes } from "@/components/bandeja-pendientes";
 import { PageHeading } from "@/components/page-heading";
 import { redirect } from "next/navigation";
 import { authVigente as auth } from "@/lib/sesion";
@@ -31,6 +32,7 @@ export default async function TurnosPage() {
         action={{ href: "/turnos/nuevo", label: "Nuevo turno" }}
       />
 
+      <BandejaPendientes />
       <TurnosRecientes />
 
       <CalendarioTurnos mostrarFiltroMedicos />

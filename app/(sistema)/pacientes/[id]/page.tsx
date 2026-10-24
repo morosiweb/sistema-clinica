@@ -2,6 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import { authVigente as auth } from "@/lib/sesion";
 import { prisma } from "@/lib/prisma";
 import { parsePermisos, puedeVer } from "@/lib/pantallas";
+import { DatosPacienteRevisiones } from "@/components/datos-paciente-revisiones";
 import { FichaMedica } from "@/components/ficha-medica";
 import { fichaSelect } from "@/lib/clinica";
 import { PacienteForm } from "@/components/paciente-form";
@@ -53,7 +54,7 @@ export default async function EditarPacientePage({
 
   const historia = await obtenerHistoriaPaciente(id, usuario);
   const ficha =
-    usuario.rol === "ADMIN"
+    usuario.rol === "ADMIN" || usuario.rol === "MEDICO"
       ? await prisma.paciente.findUnique({ where: { id }, select: fichaSelect })
       : null;
 
@@ -65,6 +66,7 @@ export default async function EditarPacientePage({
       {usuario.rol !== "MEDICO" ? (
         <PacienteForm
           pacienteId={paciente.id}
+          versionDatos={paciente.versionDatos}
           valoresIniciales={{
             dni: paciente.dni,
             nombre: paciente.nombre,
@@ -85,13 +87,14 @@ export default async function EditarPacientePage({
         </div>
       )}
 
+      {usuario.rol !== "MEDICO" && <DatosPacienteRevisiones pacienteId={id} />}
       {ficha && (
         <div className="mt-10">
           <FichaMedica
-            key={`${id}:${ficha.versionFicha}`}
+            key={id}
             pacienteId={id}
             inicial={ficha}
-            puedeRegistrarVisita={false}
+            puedeRegistrarVisita={usuario.rol === "MEDICO"}
           />
         </div>
       )}

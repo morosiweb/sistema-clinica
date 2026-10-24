@@ -84,7 +84,7 @@ export default async function TurnoDetallePage({
         Ver ficha, notas y archivos del paciente
       </Link>
       <TurnoDetalle
-        key={`${turno.id}:${turno.version}`}
+        key={turno.id}
         turno={{
           ...turno,
           notasMedico: puedeVerNotasMedico ? turno.notasMedico : null,

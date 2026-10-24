@@ -1,3 +1,4 @@
+import { MAX_NOTA_CLINICA } from "@/lib/estados-turno";
 import { z } from "zod";
 import {
   fechaSchema,
@@ -23,5 +24,10 @@ export const nuevaVisitaSchema = z.object({
   fecha: fechaSchema,
   horaInicio: horaSchema,
   motivoConsulta: z.string().trim().max(300).optional().or(z.literal("")),
-  notasMedico: z.string().trim().max(1000).optional().or(z.literal("")),
+  notasMedico: z
+    .string()
+    .trim()
+    .max(MAX_NOTA_CLINICA)
+    .optional()
+    .or(z.literal("")),
 });

@@ -1,10 +1,4 @@
-const LABELS: Record<string, string> = {
-  PENDIENTE: "Pendiente",
-  CONFIRMADO: "Confirmado",
-  CANCELADO: "Cancelado",
-  AUSENTE: "Ausente",
-  ATENDIDO: "Atendido",
-};
+import { ETIQUETAS_ESTADO as LABELS } from "@/lib/estados-turno";
 
 export function EstadoBadge({
   estado,

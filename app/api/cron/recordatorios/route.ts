@@ -2,6 +2,7 @@ import { conErrores } from "@/lib/errores";
 import { NextRequest, NextResponse } from "next/server";
 import { procesarRecordatorios } from "@/lib/recordatorios";
 import { procesarAvisosReprogramacion } from "@/lib/avisos-reprogramacion";
+import { procesarAvisosTurno } from "@/lib/avisos-turno";
 export const maxDuration = 60;
 
 // Vercel Cron llama a esta ruta con "Authorization: Bearer <CRON_SECRET>".
@@ -13,11 +14,12 @@ async function GETHandler(request: NextRequest) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
-  const [resultado, avisosReprogramacion] = await Promise.all([
+  const [resultado, avisosReprogramacion, avisosTurno] = await Promise.all([
     procesarRecordatorios(),
     procesarAvisosReprogramacion(),
+    procesarAvisosTurno(),
   ]);
-  return NextResponse.json({ ...resultado, avisosReprogramacion });
+  return NextResponse.json({ ...resultado, avisosReprogramacion, avisosTurno });
 }
 
 export const GET = conErrores(GETHandler);

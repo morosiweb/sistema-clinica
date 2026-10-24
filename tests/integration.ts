@@ -10,6 +10,7 @@ import EmbeddedPostgres from "embedded-postgres";
 import { request, chromium, type APIRequestContext } from "@playwright/test";
 import bcrypt from "bcryptjs";
 import { pruebasPanel } from "./panel-secretaria";
+import { pruebasCircuito } from "./circuito-atencion";
 import { pruebasLicencias } from "./licencias-directas";
 
 async function main() {
@@ -111,6 +112,8 @@ async function main() {
     process.env.CRON_SECRET = "cron-test-only";
     process.env.RESEND_API_KEY = "re_test_only";
     process.env.EMAIL_PROVIDER = "resend";
+    process.env.WHATSAPP_ACCESS_TOKEN = "";
+    process.env.WHATSAPP_PHONE_NUMBER_ID = "";
     delete process.env.GMAIL_USER;
     delete process.env.GMAIL_APP_PASSWORD;
     process.env.RESEND_BASE_URL = `http://127.0.0.1:${mailPort}`;
@@ -1267,6 +1270,7 @@ async function main() {
         const manana = sumarDias(fechaClinica(), 1);
         const t = await prisma.turno.create({
           data: {
+            estado: "CONFIRMADO",
             pacienteId: paciente.id,
             medicoId: medico.id,
             fecha: fechaDB(manana),
@@ -1769,6 +1773,20 @@ async function main() {
         fallarCorreo = valor;
       },
     });
+    await pruebasCircuito({
+      prisma,
+      sec,
+      adm,
+      anon,
+      baseURL,
+      futuro,
+      caso,
+      correos,
+      cliente,
+      fallarCorreo: (valor: boolean) => {
+        fallarCorreo = valor;
+      },
+    });
     console.log(
       `\n${casos} pruebas de integración correctas. PostgreSQL y correos exclusivamente locales.`,
     );
@@ -1795,9 +1813,12 @@ async function main() {
         retryDelay: 100,
       });
   }
-  if (huboFallo) process.exitCode = 1;
+  if (huboFallo)
+    throw new Error(
+      "Falló una prueba de integración; los servicios locales ya están cerrados.",
+    );
 }
 void main().catch((error) => {
   console.error(error);
-  process.exitCode = 1;
+  process.exit(1);
 });

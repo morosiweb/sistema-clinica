@@ -1,5 +1,7 @@
 # Sistema Clínica
 
+Las doce mejoras de secretaría, pacientes y médicos están detalladas en [Mejoras del circuito de atención — 24/10/2026](docs/MEJORAS_20261024.md), con sus permisos, funcionamiento y comprobaciones.
+
 Turnos, agenda médica, ficha e historia clínica y licencias. Next.js 16, React 19, Prisma 7 y PostgreSQL. Los pacientes reservan y gestionan turnos **sin cuenta ni contraseña**, con un código por email y un enlace personal.
 
 ## Instalación

@@ -1,6 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import {
+  confirmarSalida,
+  useCambiosSinGuardar,
+} from "@/lib/cambios-sin-guardar";
 import { useRouter } from "next/navigation";
 
 export type PacienteFormValues = {
@@ -26,13 +30,18 @@ const vacio: PacienteFormValues = {
 export function PacienteForm({
   valoresIniciales,
   pacienteId,
+  versionDatos = 0,
 }: {
   valoresIniciales?: PacienteFormValues;
   pacienteId?: string;
+  versionDatos?: number;
 }) {
   const router = useRouter();
   const [valores, setValores] = useState<PacienteFormValues>(
     valoresIniciales ?? vacio,
+  );
+  const limpiarCambios = useCambiosSinGuardar(
+    JSON.stringify(valores) !== JSON.stringify(valoresIniciales ?? vacio),
   );
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
@@ -58,7 +67,10 @@ export function PacienteForm({
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(valores),
+        body: JSON.stringify({
+          ...valores,
+          ...(pacienteId ? { versionDatos } : {}),
+        }),
       });
 
       if (!res.ok) {
@@ -70,6 +82,7 @@ export function PacienteForm({
         );
         return;
       }
+      limpiarCambios();
       router.push("/pacientes");
       router.refresh();
     } catch (error) {
@@ -203,7 +216,9 @@ export function PacienteForm({
         </button>
         <button
           type="button"
-          onClick={() => router.push("/pacientes")}
+          onClick={() => {
+            if (confirmarSalida()) router.push("/pacientes");
+          }}
           className="rounded-md border border-neutral-300 px-4 py-2 text-sm dark:border-neutral-700"
         >
           Cancelar

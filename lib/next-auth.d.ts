@@ -4,12 +4,14 @@ declare module "@auth/core/types" {
   interface User {
     rol?: "ADMIN" | "SECRETARIA" | "MEDICO";
     medicoId?: string | null;
+    versionSesion?: number;
   }
   interface Session {
     user: {
       id: string;
       rol: "ADMIN" | "SECRETARIA" | "MEDICO";
       medicoId: string | null;
+      versionSesion: number;
     } & DefaultSession["user"];
   }
 }
@@ -19,5 +21,6 @@ declare module "@auth/core/jwt" {
     id: string;
     rol: "ADMIN" | "SECRETARIA" | "MEDICO";
     medicoId: string | null;
+    versionSesion: number;
   }
 }

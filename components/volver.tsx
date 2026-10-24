@@ -1,4 +1,5 @@
 "use client";
+import { confirmarSalida } from "@/lib/cambios-sin-guardar";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 export function Volver({ destino = "/panel" }: { destino?: string }) {
@@ -8,6 +9,7 @@ export function Volver({ destino = "/panel" }: { destino?: string }) {
       type="button"
       className="btn btn-outline back-button"
       onClick={() => {
+        if (!confirmarSalida()) return;
         if (window.history.length > 1) router.back();
         else router.push(destino);
       }}

@@ -1,11 +1,13 @@
 import { conErrores } from "@/lib/errores";
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/api-auth";
 import { actualizarTurnoSchema } from "@/lib/validations/turno";
 import { actualizarTurno } from "@/lib/turnos";
 import { turnoParaInterno } from "@/lib/turno-dto";
-import { enviarCancelacionTurno } from "@/lib/notificaciones";
+import { procesarAvisosTurno } from "@/lib/avisos-turno";
+export const maxDuration = 60;
+
 async function GETHandler(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -46,15 +48,9 @@ async function PATCHHandler(
     data,
     session.user,
   );
-  if (turno.estado === "CANCELADO" && anterior.estado !== "CANCELADO")
-    await enviarCancelacionTurno({
-      email: anterior.paciente.email,
-      telefono: anterior.paciente.telefono,
-      nombrePaciente: anterior.paciente.nombre,
-      fecha: turno.fecha.toISOString(),
-      horaInicio: turno.horaInicio,
-      medicoNombre: `${anterior.medico.nombre} ${anterior.medico.apellido}`,
-      especialidad: anterior.medico.especialidad.nombre,
+  if (turno.estado !== anterior.estado)
+    after(async () => {
+      await procesarAvisosTurno();
     });
   return NextResponse.json(turnoParaInterno(turno, session.user));
 }

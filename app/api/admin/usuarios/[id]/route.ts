@@ -93,6 +93,7 @@ async function PATCHHandler(
         ...(data.password
           ? {
               password: passwordHash,
+              versionSesion: { increment: 1 },
               intentosFallidos: 0,
               bloqueadoHasta: null,
             }

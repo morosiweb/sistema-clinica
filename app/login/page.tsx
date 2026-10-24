@@ -123,6 +123,9 @@ export default function LoginPage() {
               <ArrowRight size={18} />
             </button>
           </form>
+          <Link href="/login/recuperar" className="text-link mt-4">
+            Olvidé mi contraseña
+          </Link>
           <p className="login-note">
             <ShieldCheck size={15} />
             Acceso exclusivo para personal autorizado.

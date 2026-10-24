@@ -1,5 +1,15 @@
 "use client";
 
+import { AvisoBorrador } from "@/components/aviso-borrador";
+import { ReprogramarForm } from "@/components/reprogramar-form";
+import { useBorradorClinico } from "@/lib/borrador-clinico";
+import { useCambiosSinGuardar } from "@/lib/cambios-sin-guardar";
+import { fetchJSON, notificarTurnos } from "@/lib/cliente";
+import {
+  ESTADOS_TURNO as ESTADOS,
+  ETIQUETAS_ESTADO,
+  MAX_NOTA_CLINICA,
+} from "@/lib/estados-turno";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -19,6 +29,7 @@ type Historial = {
 
 export type TurnoDetalleData = {
   id: string;
+  medicoId: string;
   fecha: string;
   horaInicio: string;
   horaFin: string;
@@ -49,16 +60,8 @@ export type TurnoDetalleData = {
   historial: Historial[];
 };
 
-const ESTADOS = [
-  "PENDIENTE",
-  "CONFIRMADO",
-  "CANCELADO",
-  "AUSENTE",
-  "ATENDIDO",
-] as const;
-
 export function TurnoDetalle({
-  turno,
+  turno: inicial,
   esMedico,
   puedeVerNotasMedico,
   historiaPaciente,
@@ -71,6 +74,8 @@ export function TurnoDetalle({
   historiaPaciente: EntradaHistoria[];
 }) {
   const router = useRouter();
+  const [turno, setTurno] = useState(inicial);
+  const [reprogramando, setReprogramando] = useState(false);
   const [estado, setEstado] = useState(turno.estado);
   const [notasSecretaria, setNotasSecretaria] = useState(
     turno.notasSecretaria ?? "",
@@ -78,6 +83,24 @@ export function TurnoDetalle({
   const [notasMedico, setNotasMedico] = useState(turno.notasMedico ?? "");
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
+  const [guardado, setGuardado] = useState({
+    estado: inicial.estado,
+    notasSecretaria: inicial.notasSecretaria ?? "",
+    notasMedico: inicial.notasMedico ?? "",
+  });
+  const limpiarCambios = useCambiosSinGuardar(
+    estado !== guardado.estado ||
+      notasSecretaria !== guardado.notasSecretaria ||
+      notasMedico !== guardado.notasMedico,
+  );
+  const borrador = useBorradorClinico(
+    "nota",
+    turno.id,
+    turno.version,
+    { notasMedico },
+    notasMedico !== guardado.notasMedico,
+    esMedico,
+  );
 
   const inputClass =
     "w-full rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-800";
@@ -106,6 +129,12 @@ export function TurnoDetalle({
         );
         return;
       }
+      const actualizado = await res.json();
+      setTurno((t) => ({ ...t, ...actualizado }));
+      setGuardado({ estado, notasSecretaria, notasMedico });
+      limpiarCambios();
+      if (esMedico) await borrador.limpiar().catch(() => {});
+      notificarTurnos();
       router.refresh();
     } catch (error) {
       setError(
@@ -148,6 +177,48 @@ export function TurnoDetalle({
         )}
       </div>
 
+      {!esMedico &&
+        (["PENDIENTE", "CONFIRMADO", "LLEGO", "EN_ESPERA"].includes(
+          turno.estado,
+        ) ||
+          turno.requiereReprogramacion) && (
+          <section className="surface p-5 space-y-3">
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={() => setReprogramando(!reprogramando)}
+            >
+              Reprogramar turno
+            </button>
+            {reprogramando && (
+              <ReprogramarForm
+                interno
+                medicoActualId={turno.medicoId}
+                onCancelar={() => setReprogramando(false)}
+                onConfirmar={async (medicoId, fecha, horaInicio) => {
+                  const data = await fetchJSON<
+                    Partial<TurnoDetalleData> & { estado: string }
+                  >(`/api/turnos/${turno.id}/reprogramar`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      medicoId,
+                      fecha,
+                      horaInicio,
+                      version: turno.version,
+                    }),
+                  });
+                  setTurno((t) => ({ ...t, ...data }));
+                  setEstado(data.estado);
+                  setGuardado((g) => ({ ...g, estado: data.estado }));
+                  setReprogramando(false);
+                  notificarTurnos();
+                  router.refresh();
+                }}
+              />
+            )}
+          </section>
+        )}
       <div className="space-y-1">
         <label htmlFor="turno-detalle-campo-1" className="text-sm font-medium">
           Estado
@@ -160,15 +231,7 @@ export function TurnoDetalle({
         >
           {ESTADOS.map((e) => (
             <option key={e} value={e}>
-              {
-                {
-                  PENDIENTE: "Pendiente",
-                  CONFIRMADO: "Confirmado",
-                  CANCELADO: "Cancelado",
-                  AUSENTE: "Ausente",
-                  ATENDIDO: "Atendido",
-                }[e]
-              }
+              {ETIQUETAS_ESTADO[e]}
             </option>
           ))}
         </select>
@@ -186,6 +249,7 @@ export function TurnoDetalle({
             id="turno-detalle-campo-2"
             className={inputClass}
             rows={3}
+            maxLength={1000}
             value={notasSecretaria}
             onChange={(e) => setNotasSecretaria(e.target.value)}
           />
@@ -200,13 +264,28 @@ export function TurnoDetalle({
           >
             Notas clínicas (médico)
           </label>
+          <AvisoBorrador
+            disponible={!!borrador.disponible}
+            obsoleto={borrador.disponible?.versionBase !== turno.version}
+            estado={borrador.estado}
+            restaurar={() => {
+              const data = borrador.restaurar();
+              if (data) setNotasMedico(data.notasMedico);
+            }}
+            descartar={borrador.limpiar}
+          />
           <textarea
             id="turno-detalle-campo-3"
             className={inputClass}
-            rows={3}
+            rows={8}
+            maxLength={MAX_NOTA_CLINICA}
             value={notasMedico}
             onChange={(e) => setNotasMedico(e.target.value)}
           />
+          <p className="text-sm text-neutral-500">
+            {notasMedico.length.toLocaleString("es-AR")} /{" "}
+            {MAX_NOTA_CLINICA.toLocaleString("es-AR")} caracteres
+          </p>
         </div>
       )}
       {!esMedico && puedeVerNotasMedico && turno.notasMedico && (
@@ -238,7 +317,10 @@ export function TurnoDetalle({
       <div>
         <h2 className="mb-2 text-sm font-semibold">Historial</h2>
         <div className="space-y-1 text-xs text-neutral-500">
-          {turno.historial.map((h) => (
+          {(inicial.version >= turno.version
+            ? inicial.historial
+            : turno.historial
+          ).map((h) => (
             <p key={h.id}>
               {new Date(h.fecha).toLocaleString("es-AR")} · {h.accion} ·{" "}
               {h.realizadoPor}
@@ -266,7 +348,7 @@ export function TurnoDetalle({
 
       {puedeVerNotasMedico && (
         <FichaMedica
-          key={`${turno.paciente.id}:${turno.paciente.versionFicha}`}
+          key={turno.paciente.id}
           puedeRegistrarVisita={esMedico}
           pacienteId={turno.paciente.id}
           inicial={{

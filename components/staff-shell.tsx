@@ -17,6 +17,7 @@ import {
   ChevronRight,
   HeartPulse,
 } from "lucide-react";
+import { confirmarSalida } from "@/lib/cambios-sin-guardar";
 import { Brand } from "@/components/brand";
 import { Volver } from "@/components/volver";
 
@@ -100,7 +101,9 @@ export function StaffShell({
     };
   }, [open]);
   const actual =
-    pantallas.find((p) => pathname.startsWith(p.href))?.label || "Inicio";
+    (pathname === "/cuenta"
+      ? "Mi cuenta"
+      : pantallas.find((p) => pathname.startsWith(p.href))?.label) || "Inicio";
   return (
     <div
       className="staff-app"
@@ -218,8 +221,20 @@ export function StaffShell({
           <div className="user-info">
             <strong>{nombre}</strong>
             <span>{roles[rol] || rol}</span>
+            <Link
+              className="account-link"
+              href="/cuenta"
+              onClick={() => setOpen(false)}
+            >
+              Mi cuenta
+            </Link>
           </div>
-          <form action={salir}>
+          <form
+            action={salir}
+            onSubmit={(e) => {
+              if (!confirmarSalida()) e.preventDefault();
+            }}
+          >
             <button
               className="icon-btn"
               title="Cerrar sesión"

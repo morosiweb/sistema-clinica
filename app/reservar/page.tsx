@@ -1,4 +1,5 @@
 "use client";
+import { ProximaDisponibilidad } from "@/components/proxima-disponibilidad";
 import { useState } from "react";
 import Link from "next/link";
 import {
@@ -269,6 +270,15 @@ export default function ReservarPage() {
                   }}
                 />
               </label>
+              <ProximaDisponibilidad
+                medicoId={medico.id}
+                fecha={fecha}
+                onElegir={(dia, h) => {
+                  setDia(dia);
+                  setHora(h);
+                  setPaso(verificacionId ? "codigo" : "datos");
+                }}
+              />
               <div className="date-options">
                 {hoy &&
                   Array.from({ length: 5 }, (_, i) => sumarDias(hoy, i)).map(
@@ -473,10 +483,10 @@ export default function ReservarPage() {
               <h2>¡Turno reservado!</h2>
               <p>
                 {resultado.notificacion.canal === "whatsapp"
-                  ? "Enviamos la confirmación y tu enlace de gestión por WhatsApp."
+                  ? "Enviamos la solicitud y tu enlace de gestión por WhatsApp. Secretaría debe confirmar el turno."
                   : resultado.notificacion.canal === "email"
-                    ? "Enviamos la confirmación y tu enlace de gestión por email."
-                    : "El turno quedó reservado, pero no pudimos enviar la confirmación. Guardá este enlace."}
+                    ? "Enviamos la solicitud y tu enlace de gestión por email. Te avisaremos cuando secretaría confirme el turno."
+                    : "Tu solicitud quedó pendiente de confirmación, pero no pudimos enviar el aviso. Guardá este enlace."}
               </p>
               <Link className="btn btn-primary" href={resultado.linkAcceso}>
                 Ver y gestionar mis turnos <ArrowRight size={17} />

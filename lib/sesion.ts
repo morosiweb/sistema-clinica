@@ -14,13 +14,18 @@ export async function authVigente() {
     where: { id: session.user.id },
     select: {
       activo: true,
+      versionSesion: true,
       rol: true,
       medicoId: true,
       nombre: true,
       email: true,
     },
   });
-  if (!usuario?.activo) return null;
+  if (
+    !usuario?.activo ||
+    usuario.versionSesion !== (session.user.versionSesion ?? 0)
+  )
+    return null;
   return {
     ...session,
     user: {
