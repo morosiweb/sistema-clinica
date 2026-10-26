@@ -6,17 +6,13 @@ import { conErrores, ErrorClinica } from "@/lib/errores";
 import { permisosPorRol, serializarPermisos } from "@/lib/pantallas";
 import { prisma } from "@/lib/prisma";
 import { emailSchema } from "@/lib/validations/comun";
+import { passwordSchema } from "@/lib/validations/cuenta";
+import { limitarSolicitud } from "@/lib/verificacion";
 
 const accesoSchema = z
   .object({
     email: emailSchema.max(254),
-    password: z
-      .string()
-      .min(8, "La contraseña debe tener al menos 8 caracteres")
-      .max(72, "La contraseña es demasiado larga")
-      .refine((valor) => Buffer.byteLength(valor, "utf8") <= 72, {
-        message: "La contraseña es demasiado larga; usá menos caracteres",
-      }),
+    password: passwordSchema,
   })
   .strict();
 
@@ -69,7 +65,7 @@ async function POSTHandler(
         medicoId: id,
         permisos: serializarPermisos(permisosPorRol("MEDICO")),
       },
-      select: { email: true, activo: true },
+      select: { email: true, activo: true, versionSesion: true },
     });
   });
 
@@ -80,3 +76,90 @@ async function POSTHandler(
 }
 
 export const POST = conErrores(POSTHandler);
+
+const cambioSchema = z
+  .object({
+    password: passwordSchema,
+    confirmacion: z.string().max(72),
+    versionSesion: z.number().int().nonnegative(),
+  })
+  .strict()
+  .refine((data) => data.password === data.confirmacion, {
+    message: "Las contraseñas no coinciden",
+  });
+
+export const PATCH = conErrores(
+  async (
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> },
+  ) => {
+    const { session, response } = await requireSession(["medicos"]);
+    if (!session) return response;
+    if (!["ADMIN", "SECRETARIA"].includes(session.user.rol))
+      throw new ErrorClinica("Sin acceso", 403);
+    const data = cambioSchema.parse(await request.json());
+    await limitarSolicitud(`clave-medicos:${session.user.id}`, 20);
+    const { id } = await params;
+    const cuenta = await prisma.usuarioInterno.findUnique({
+      where: { medicoId: id },
+      select: { id: true },
+    });
+    if (!cuenta)
+      throw new ErrorClinica(
+        "Este médico todavía no tiene acceso al panel",
+        404,
+      );
+    const password = await bcrypt.hash(data.password, 10);
+    const usuario = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`cuenta:${cuenta.id}`}))`;
+      const actual = await tx.usuarioInterno.findUniqueOrThrow({
+        where: { id: cuenta.id },
+        select: {
+          email: true,
+          activo: true,
+          rol: true,
+          medicoId: true,
+          versionSesion: true,
+        },
+      });
+      if (actual.rol !== "MEDICO" || actual.medicoId !== id)
+        throw new ErrorClinica(
+          "Solo se puede cambiar la contraseña de una cuenta médica",
+          403,
+        );
+      if (actual.versionSesion !== data.versionSesion)
+        throw new ErrorClinica(
+          "La cuenta cambió. Recargá el perfil antes de cambiar la contraseña.",
+          409,
+        );
+      const resultado = await tx.usuarioInterno.updateMany({
+        where: {
+          id: cuenta.id,
+          medicoId: id,
+          rol: "MEDICO",
+          versionSesion: data.versionSesion,
+        },
+        data: {
+          password,
+          versionSesion: { increment: 1 },
+          intentosFallidos: 0,
+          bloqueadoHasta: null,
+        },
+      });
+      if (!resultado.count)
+        throw new ErrorClinica(
+          "La cuenta cambió. Recargá el perfil antes de cambiar la contraseña.",
+          409,
+        );
+      return {
+        email: actual.email,
+        activo: actual.activo,
+        versionSesion: actual.versionSesion + 1,
+      };
+    });
+    return NextResponse.json(
+      { usuario },
+      { headers: { "Cache-Control": "private, no-store" } },
+    );
+  },
+);

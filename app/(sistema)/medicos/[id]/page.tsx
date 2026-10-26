@@ -34,7 +34,9 @@ export default async function EditarMedicoPage({
       where: { id },
       include: {
         horarios: true,
-        usuarioInterno: { select: { email: true, activo: true } },
+        usuarioInterno: {
+          select: { email: true, activo: true, versionSesion: true },
+        },
       },
     }),
     prisma.especialidad.findMany({

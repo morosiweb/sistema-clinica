@@ -11,6 +11,7 @@ import { request, chromium, type APIRequestContext } from "@playwright/test";
 import bcrypt from "bcryptjs";
 import { pruebasPanel } from "./panel-secretaria";
 import { pruebasCircuito } from "./circuito-atencion";
+import { pruebasClaveMedico } from "./clave-medico";
 import { pruebasLicencias } from "./licencias-directas";
 
 async function main() {
@@ -508,6 +509,7 @@ async function main() {
         assert.deepEqual(body.usuario, {
           email: "nuevo-medico@example.test",
           activo: true,
+          versionSesion: 0,
         });
         const creado = await prisma.usuarioInterno.findUniqueOrThrow({
           where: { medicoId: medicoSinAcceso.id },
@@ -670,6 +672,16 @@ async function main() {
         }
       },
     );
+    await pruebasClaveMedico({
+      prisma,
+      sec,
+      adm,
+      doc,
+      anon,
+      baseURL,
+      cliente,
+      caso,
+    });
     const datos = {
       dni: paciente.dni,
       nombre: "Identidad Falsa",
