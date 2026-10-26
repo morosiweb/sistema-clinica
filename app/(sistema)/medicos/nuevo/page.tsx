@@ -30,7 +30,7 @@ export default async function NuevoMedicoPage() {
 
   if (especialidades.length === 0) {
     return (
-      <div className="record-page">
+      <div className="record-page record-page-inset record-page-form">
         <PageHeading
           title="Nuevo médico"
           description="Sumá un profesional y configurá su atención."
@@ -47,7 +47,7 @@ export default async function NuevoMedicoPage() {
   }
 
   return (
-    <div className="record-page">
+    <div className="record-page record-page-inset record-page-form">
       <PageHeading
         title="Nuevo médico"
         description="Sumá un profesional y configurá su atención."

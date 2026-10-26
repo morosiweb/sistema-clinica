@@ -47,7 +47,7 @@ export default async function EditarMedicoPage({
   if (!medico) notFound();
 
   return (
-    <div className="record-page">
+    <div className="record-page record-page-inset record-page-form">
       <h1 className="mb-6 text-xl font-semibold">
         {medico.apellido}, {medico.nombre}
       </h1>

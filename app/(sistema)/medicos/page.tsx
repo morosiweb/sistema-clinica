@@ -31,7 +31,7 @@ export default async function MedicosPage() {
   });
 
   return (
-    <div className="record-page">
+    <div className="record-page record-page-inset">
       <PageHeading
         title="Médicos"
         description="El equipo profesional, sus agendas y accesos al panel."

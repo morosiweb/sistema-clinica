@@ -27,7 +27,7 @@ export default async function EspecialidadesPage() {
   });
 
   return (
-    <div className="record-page">
+    <div className="record-page record-page-inset record-page-form">
       <PageHeading
         title="Especialidades"
         description="Organizá las áreas de atención disponibles en la clínica."
