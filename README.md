@@ -95,6 +95,8 @@ Aplicar `202610200001_licencias_directas` con `npm run db:migrate` **antes de de
 
 ## WhatsApp (canal preferido cuando hay teléfono)
 
+Para experimentar con el formulario de reserva de WhatsApp Flows con datos ficticios, ver [extremo de demostración y configuración](docs/WHATSAPP_FLOWS_PRUEBA.md). Permanece deshabilitado hasta cargar sus variables específicas. No consulta la agenda ni registra turnos reales.
+
 El código de verificación, la confirmación, el recordatorio, la cancelación y el aviso de reprogramación por licencia se intentan primero por WhatsApp cuando el paciente tiene teléfono y el canal está configurado; si no, se usa email como hoy. Nunca se envían los dos. El código para un DNI completamente nuevo (primera reserva) sigue yendo únicamente por email, porque en ese paso todavía no se guardó el teléfono.
 
 Variables de entorno:

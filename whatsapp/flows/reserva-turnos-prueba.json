@@ -1,0 +1,421 @@
+{
+  "version": "7.3",
+  "data_api_version": "3.0",
+  "routing_model": {
+    "APPOINTMENT": [
+      "DETAILS"
+    ],
+    "DETAILS": [
+      "SUMMARY"
+    ],
+    "SUMMARY": [
+      "TERMS"
+    ],
+    "TERMS": []
+  },
+  "screens": [
+    {
+      "id": "APPOINTMENT",
+      "title": "Solicitar turno · Prueba",
+      "data": {
+        "department": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "general_demo",
+              "title": "Medicina general (prueba)"
+            },
+            {
+              "id": "cardiologia_demo",
+              "title": "Cardiología (prueba)"
+            }
+          ]
+        },
+        "location": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "profesional_demo_a",
+              "title": "Profesional de prueba A"
+            },
+            {
+              "id": "profesional_demo_b",
+              "title": "Profesional de prueba B"
+            }
+          ]
+        },
+        "is_location_enabled": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "date": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "2026-11-17",
+              "title": "Martes 17 de noviembre"
+            },
+            {
+              "id": "2026-11-18",
+              "title": "Miércoles 18 de noviembre"
+            },
+            {
+              "id": "2026-11-19",
+              "title": "Jueves 19 de noviembre"
+            }
+          ]
+        },
+        "is_date_enabled": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "time": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "09:00",
+              "title": "09:00"
+            },
+            {
+              "id": "09:30",
+              "title": "09:30"
+            },
+            {
+              "id": "10:30",
+              "title": "10:30"
+            }
+          ]
+        },
+        "is_time_enabled": {
+          "type": "boolean",
+          "__example__": true
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "appointment_form",
+            "children": [
+              {
+                "type": "TextBody",
+                "text": "Demostración con datos ficticios. No registra turnos reales."
+              },
+              {
+                "type": "Dropdown",
+                "label": "Especialidad",
+                "name": "department",
+                "data-source": "${data.department}",
+                "required": true,
+                "on-select-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "trigger": "department_selected",
+                    "department": "${form.department}"
+                  }
+                }
+              },
+              {
+                "type": "Dropdown",
+                "label": "Profesional",
+                "name": "location",
+                "data-source": "${data.location}",
+                "required": "${data.is_location_enabled}",
+                "enabled": "${data.is_location_enabled}",
+                "on-select-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "trigger": "location_selected",
+                    "department": "${form.department}",
+                    "location": "${form.location}"
+                  }
+                }
+              },
+              {
+                "type": "Dropdown",
+                "label": "Fecha",
+                "name": "date",
+                "data-source": "${data.date}",
+                "required": "${data.is_date_enabled}",
+                "enabled": "${data.is_date_enabled}",
+                "on-select-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "trigger": "date_selected",
+                    "department": "${form.department}",
+                    "location": "${form.location}",
+                    "date": "${form.date}"
+                  }
+                }
+              },
+              {
+                "type": "Dropdown",
+                "label": "Horario",
+                "name": "time",
+                "data-source": "${data.time}",
+                "required": "${data.is_time_enabled}",
+                "enabled": "${data.is_time_enabled}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continuar",
+                "on-click-action": {
+                  "name": "navigate",
+                  "next": {
+                    "type": "screen",
+                    "name": "DETAILS"
+                  },
+                  "payload": {
+                    "department": "${form.department}",
+                    "location": "${form.location}",
+                    "date": "${form.date}",
+                    "time": "${form.time}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "DETAILS",
+      "title": "Tus datos · Prueba",
+      "data": {
+        "department": {
+          "type": "string",
+          "__example__": "general_demo"
+        },
+        "location": {
+          "type": "string",
+          "__example__": "profesional_demo_a"
+        },
+        "date": {
+          "type": "string",
+          "__example__": "2026-11-17"
+        },
+        "time": {
+          "type": "string",
+          "__example__": "10:30"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "details_form",
+            "children": [
+              {
+                "type": "TextBody",
+                "text": "Para esta prueba usá datos ficticios. No ingreses DNI, síntomas ni información clínica."
+              },
+              {
+                "type": "TextInput",
+                "label": "Nombre y apellido",
+                "name": "name",
+                "required": true
+              },
+              {
+                "type": "TextInput",
+                "label": "Email",
+                "name": "email",
+                "input-type": "email",
+                "required": true
+              },
+              {
+                "type": "TextInput",
+                "label": "Teléfono de contacto",
+                "name": "phone",
+                "input-type": "phone",
+                "required": true
+              },
+              {
+                "type": "Footer",
+                "label": "Revisar solicitud",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "department": "${data.department}",
+                    "location": "${data.location}",
+                    "date": "${data.date}",
+                    "time": "${data.time}",
+                    "name": "${form.name}",
+                    "email": "${form.email}",
+                    "phone": "${form.phone}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SUMMARY",
+      "title": "Revisar solicitud",
+      "terminal": true,
+      "data": {
+        "appointment": {
+          "type": "string",
+          "__example__": "Medicina general · Profesional de prueba A\nMartes 17 de noviembre de 2026 · 10:30\nEjemplo sin reserva real."
+        },
+        "details": {
+          "type": "string",
+          "__example__": "Persona de prueba\npersona@example.test\nTeléfono ficticio de prueba"
+        },
+        "department": {
+          "type": "string",
+          "__example__": "general_demo"
+        },
+        "location": {
+          "type": "string",
+          "__example__": "profesional_demo_a"
+        },
+        "date": {
+          "type": "string",
+          "__example__": "2026-11-17"
+        },
+        "time": {
+          "type": "string",
+          "__example__": "10:30"
+        },
+        "name": {
+          "type": "string",
+          "__example__": "Persona de prueba"
+        },
+        "email": {
+          "type": "string",
+          "__example__": "persona@example.test"
+        },
+        "phone": {
+          "type": "string",
+          "__example__": "5491100000000"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "confirmation_form",
+            "children": [
+              {
+                "type": "TextBody",
+                "text": "Es una demostración. No se enviará una reserva a la clínica. En el servicio real, secretaría debe confirmar la solicitud."
+              },
+              {
+                "type": "TextHeading",
+                "text": "Turno solicitado"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.appointment}"
+              },
+              {
+                "type": "TextHeading",
+                "text": "Datos de contacto"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.details}"
+              },
+              {
+                "type": "OptIn",
+                "name": "terms",
+                "label": "Acepto las condiciones de prueba",
+                "required": true,
+                "on-click-action": {
+                  "name": "navigate",
+                  "next": {
+                    "type": "screen",
+                    "name": "TERMS"
+                  },
+                  "payload": {}
+                }
+              },
+              {
+                "type": "Footer",
+                "label": "Enviar solicitud de prueba",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "department": "${data.department}",
+                    "location": "${data.location}",
+                    "date": "${data.date}",
+                    "time": "${data.time}",
+                    "name": "${data.name}",
+                    "email": "${data.email}",
+                    "phone": "${data.phone}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "TERMS",
+      "title": "Condiciones de prueba",
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "Sobre esta demostración"
+          },
+          {
+            "type": "TextBody",
+            "text": "Este formulario es una prueba con profesionales, fechas y horarios ficticios. No registra turnos reales ni envía avisos. Usá datos inventados y no ingreses documentos, síntomas, diagnósticos ni archivos clínicos. La disponibilidad real y el envío de solicitudes quedarán habilitados cuando se conecte el sistema de la clínica. Estas condiciones son solo para la demostración."
+          }
+        ]
+      }
+    }
+  ]
+}
